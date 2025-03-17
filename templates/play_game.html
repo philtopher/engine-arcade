@@ -1399,19 +1399,22 @@
             });
         }
         
-        // Event listeners
-        chatSubmit.addEventListener('click', handleChatSubmit);
-        chatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                handleChatSubmit();
-            }
-        });
-        
-        // Start game initialization when the page loads
-        window.addEventListener('load', function() {
-            console.log('Window loaded, initializing game in 1 second...');
-            // Short delay to ensure DOM is fully loaded
-            setTimeout(initGame, 1000);
+        // Setup event listeners and initialize the game when the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Event listeners
+            chatSubmit.addEventListener('click', handleChatSubmit);
+            chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    handleChatSubmit();
+                }
+            });
+            
+            // Start game initialization when the page loads
+            window.addEventListener('load', function() {
+                console.log('Window loaded, initializing game in 1 second...');
+                // Short delay to ensure DOM is fully loaded
+                setTimeout(initGame, 1000);
+            });
         });
     </script>
 </body>
