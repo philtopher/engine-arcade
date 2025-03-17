@@ -165,21 +165,49 @@ The game should run directly in a browser without requiring a build step or serv
         
         # Open the log file for appending
         with open(log_file_path, 'a') as log_file:
-            # Create the command
+            # Create the command with environment variables properly exported
             cmd = f"cd {gpte_repo} && OPENAI_API_KEY='{api_key}' python -m gpt_engineer.applications.cli.main \"{project_dir}\" --temperature 0.7 --verbose"
             log_file.write(f"Executing command: {cmd}\n")
             print(f"Executing command: {cmd}")
             
             try:
-                # Run the process and capture output in real-time
+                # First log the API key check for debugging (without exposing the full key)
+                key_prefix = api_key[:4] if api_key else "None"
+                log_file.write(f"API Key check: {key_prefix}...\n")
+                print(f"API Key check: {key_prefix}...")
+                
+                # Verify the project directory exists
+                if not os.path.exists(project_dir):
+                    error_msg = f"Project directory does not exist: {project_dir}"
+                    log_file.write(f"ERROR: {error_msg}\n")
+                    print(f"ERROR: {error_msg}")
+                else:
+                    log_file.write(f"Project directory exists: {project_dir}\n")
+                    print(f"Project directory exists: {project_dir}")
+                
+                # Verify GPT Engineer repo exists
+                if not os.path.exists(gpte_repo):
+                    error_msg = f"GPT Engineer repo does not exist: {gpte_repo}"
+                    log_file.write(f"ERROR: {error_msg}\n")
+                    print(f"ERROR: {error_msg}")
+                else:
+                    log_file.write(f"GPT Engineer repo exists: {gpte_repo}\n")
+                    print(f"GPT Engineer repo exists: {gpte_repo}")
+                
+                # Set up the environment with the API key
+                env = os.environ.copy()
+                env['OPENAI_API_KEY'] = api_key
+                
+                # Run the process with the environment variables and capture output in real-time
                 process = subprocess.Popen(
-                    cmd,
+                    f"cd {gpte_repo} && python -m gpt_engineer.applications.cli.main \"{project_dir}\" --temperature 0.7 --verbose",
                     shell=True,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
                     bufsize=1,  # Line buffered
-                    universal_newlines=True
+                    universal_newlines=True,
+                    env=env
                 )
                 
                 # Read output line by line as it happens

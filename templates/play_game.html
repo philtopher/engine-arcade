@@ -1398,16 +1398,25 @@
                 checkForFilesAndLoad: (typeof window.checkForFilesAndLoad === 'function') ? 'defined' : 'undefined',
             });
         }
-        
+
         // Setup event listeners and initialize the game when the DOM is fully loaded
         document.addEventListener('DOMContentLoaded', function() {
-            // Event listeners
-            chatSubmit.addEventListener('click', handleChatSubmit);
-            chatInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    handleChatSubmit();
-                }
-            });
+            // Get elements after DOM is loaded
+            const chatSubmit = document.getElementById('chat-submit');
+            const chatInput = document.getElementById('chat-input');
+            
+            // Event listeners - only add if elements exist
+            if (chatSubmit) {
+                chatSubmit.addEventListener('click', handleChatSubmit);
+            }
+            
+            if (chatInput) {
+                chatInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        handleChatSubmit();
+                    }
+                });
+            }
             
             // Start game initialization when the page loads
             window.addEventListener('load', function() {
