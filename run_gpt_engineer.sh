@@ -8,7 +8,7 @@ if [ $# -lt 1 ]; then
 fi
 
 PROJECT_DIR="$1"
-GPTE_DIR="/Users/ericlam/Desktop/gpt-engineer"
+GPTE_DIR="$(dirname "$0")/gpt-engineer"
 
 # Load the API key from the .env file
 if [ -f "$GPTE_DIR/.env" ]; then
