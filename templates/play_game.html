@@ -633,9 +633,14 @@
         function setupLogStreaming(projectName) {
             if (!projectName) return;
             
-            // Close any existing EventSource
-            if (window.logEventSource) {
-                window.logEventSource.close();
+            // Close any existing EventSource connection
+            try {
+                if (window.logEventSource) {
+                    window.logEventSource.close();
+                    window.logEventSource = null;
+                }
+            } catch (err) {
+                console.error('Error closing existing EventSource:', err);
             }
             
             // Create a new EventSource connection for Server-Sent Events
@@ -702,8 +707,13 @@
                 generationLog.innerHTML += '> Error with log streaming connection\n';
                 // Try to reconnect after a delay
                 setTimeout(() => {
-                    if (window.logEventSource) {
-                        window.logEventSource.close();
+                    try {
+                        if (window.logEventSource) {
+                            window.logEventSource.close();
+                            window.logEventSource = null;
+                        }
+                    } catch (err) {
+                        console.error('Error closing EventSource during reconnect:', err);
                     }
                     setupLogStreaming(projectName);
                 }, 5000);

@@ -125,41 +125,14 @@ The game should run directly in a browser without requiring a build step or serv
     static_project_dir = os.path.join(app.static_folder, 'project_assets', project_name)
     os.makedirs(static_project_dir, exist_ok=True)
     
-    # Create an initial log file for streaming with sample code
+    # Create an empty log file for the GPT Engineer process to write to
     log_file = os.path.join(project_dir, 'gpt_engineer.log')
     with open(log_file, 'w') as f:
         f.write(f"Starting generation for project: {project_name}\n")
         f.write(f"Timestamp: {datetime.datetime.now()}\n\n")
         f.write("Initializing Three.js game generation with gpt-engineer...\n\n")
-        f.write("Analyzing game requirements from your description...\n")
-        f.write("Creating core files for your Three.js game...\n\n")
         
-        # Add sample Three.js code to show in the streaming interface
-        f.write("```javascript\n")
-        f.write("// Setting up the Three.js scene\n")
-        f.write("const scene = new THREE.Scene();\n")
-        f.write("scene.background = new THREE.Color(0x87ceeb);  // Sky blue background\n\n")
-        
-        f.write("// Camera setup\n")
-        f.write("const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);\n")
-        f.write("camera.position.set(0, 5, 10);\n\n")
-        
-        f.write("// Renderer with shadows enabled\n")
-        f.write("const renderer = new THREE.WebGLRenderer({ antialias: true });\n")
-        f.write("renderer.setSize(window.innerWidth, window.innerHeight);\n")
-        f.write("renderer.shadowMap.enabled = true;\n")
-        f.write("document.body.appendChild(renderer.domElement);\n\n")
-        
-        f.write("// Game objects\n")
-        f.write("const geometry = new THREE.BoxGeometry(1, 1, 1);\n")
-        f.write("const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });\n")
-        f.write("const player = new THREE.Mesh(geometry, material);\n")
-        f.write("player.castShadow = true;\n")
-        f.write("scene.add(player);\n")
-        f.write("```\n\n")
-        
-        f.write("Creating game logic and controls...\n")
-        f.write("Implementing game mechanics based on your description...\n")
+
     
     # Copy the basic template to the static directory so it's immediately accessible
     copy_generated_files_to_static(project_name, project_dir)
@@ -186,30 +159,57 @@ The game should run directly in a browser without requiring a build step or serv
     
     # Create a background thread that will actually run the process
     def run_gpte_background():
-        cmd = f"cd {gpte_repo} && OPENAI_API_KEY='{api_key}' python -m gpt_engineer.applications.cli.main \"{project_dir}\" --temperature 0.7 --verbose"
-        print(f"Executing command: {cmd}")
+        # Get log file path
+        log_file_path = os.path.join(project_dir, 'gpt_engineer.log')
+        print(f"Log file will be written to: {log_file_path}")
         
-        try:
-            result = subprocess.run(
-                cmd,
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                check=True
-            )
-            print("GPT Engineer process completed successfully")
+        # Open the log file for appending
+        with open(log_file_path, 'a') as log_file:
+            # Create the command
+            cmd = f"cd {gpte_repo} && OPENAI_API_KEY='{api_key}' python -m gpt_engineer.applications.cli.main \"{project_dir}\" --temperature 0.7 --verbose"
+            log_file.write(f"Executing command: {cmd}\n")
+            print(f"Executing command: {cmd}")
             
-            # Create a completion marker file
-            with open(os.path.join(project_dir, ".gpte_done"), "w") as f:
-                f.write(f"Process completed at {datetime.datetime.now()}")
+            try:
+                # Run the process and capture output in real-time
+                process = subprocess.Popen(
+                    cmd,
+                    shell=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,  # Line buffered
+                    universal_newlines=True
+                )
                 
-            # Copy generated files to static
-            copy_generated_files_to_static(project_name, project_dir)
-        except subprocess.CalledProcessError as e:
-            print(f"Error running GPT Engineer: {e}")
-            with open(os.path.join(project_dir, 'gpt_engineer.log'), 'a') as f:
-                f.write(f"\nError: {str(e)}\n")
+                # Read output line by line as it happens
+                for line in process.stdout:
+                    line = line.rstrip()
+                    print(f"GPT Engineer output: {line}")
+                    log_file.write(f"{line}\n")
+                    log_file.flush()  # Ensure content is written immediately
+                
+                # Wait for process to complete
+                return_code = process.wait()
+                
+                if return_code == 0:
+                    print("GPT Engineer process completed successfully")
+                    log_file.write("\n✅ Game generation complete!\n")
+                    
+                    # Create a completion marker file
+                    with open(os.path.join(project_dir, ".gpte_done"), "w") as f:
+                        f.write(f"Process completed at {datetime.datetime.now()}")
+                    
+                    # Copy generated files to static
+                    copy_generated_files_to_static(project_name, project_dir)
+                else:
+                    error_msg = f"GPT Engineer process failed with return code {return_code}"
+                    print(error_msg)
+                    log_file.write(f"\nError: {error_msg}\n")
+            
+            except Exception as e:
+                print(f"Error running GPT Engineer: {e}")
+                log_file.write(f"\nError: {str(e)}\n")
     
     # Start the background thread
     thread = threading.Thread(target=run_gpte_background)
@@ -2709,7 +2709,7 @@ def stream_logs(project_name):
     """Stream GPT Engineer logs in real-time using Server-Sent Events"""
     project_dir = os.path.join(BASE_PROJECT_DIR, project_name)
     log_file = os.path.join(project_dir, 'gpt_engineer.log')
-    done_file = os.path.join(project_dir, 'generation_done')
+    done_file = os.path.join(project_dir, '.gpte_done')
     
     def generate():
         # Send an initial message
