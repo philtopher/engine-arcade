@@ -15,9 +15,9 @@ Engine Arcade consists of two main components:
 
 ### 1. User Initiates Game Creation
 
-- User enters a game description on the web interface
-- User selects game type (3D Shooter, Platformer, Racing, Puzzle, or Custom)
-- Frontend sends this data to the Flask backend via AJAX
+- User enters a game description on the web interface (e.g., "make a zombie game")
+- Frontend sends this description to the Flask backend via AJAX
+- No explicit game type selection is required - the system infers the game type from the description
 
 ### 2. Backend Processing
 
@@ -159,6 +159,23 @@ source "$GPTE_DIR/.env"
 # Run GPT Engineer with project directory
 cd "$GPTE_DIR" && python -m gpt_engineer.applications.cli.main "$PROJECT_DIR" --temperature 0.7 --verbose
 ```
+
+## Game Type Inference Challenges
+
+The system now infers game types from user descriptions rather than using explicit selection. This approach presents several challenges:
+
+1. **Ambiguity in User Prompts**: When a user provides a vague description like "make a zombie game", the system must infer whether this should be a shooter, racing game, or another genre.
+
+2. **Inconsistent Prompting**: Without explicit structure, users may provide widely varying levels of detail, making it harder for the AI to generate consistent code.
+
+3. **Template Selection**: Previously, specific templates could be chosen based on explicit game type. Now, the system must determine the appropriate starting point from context.
+
+4. **Prompt Engineering Complexity**: More sophisticated prompt engineering is required to guide the AI when game type is implicit.
+
+These challenges may contribute to generation errors if:
+- The inference mechanism misinterprets the user's intent
+- The prepared prompts don't adequately account for vague descriptions
+- The AI attempts to blend incompatible game mechanics based on ambiguous instructions
 
 ## Deployment Considerations
 
