@@ -1,0 +1,480 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Puzzle Maze - Rotate the World</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            pointer-events: none;
+        }
+        #loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #121212;
+            color: white;
+            z-index: 100;
+            font-size: 24px;
+        }
+        #level-complete {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: #4CAF50;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">Loading game...</div>
+    
+    <div id="info">
+        Controls: Click and drag to rotate the world<br>
+        Goal: Guide the ball to the green platform
+    </div>
+    
+    <div id="level-complete">
+        <h2>Level Complete!</h2>
+        <p>Well done! You've completed the puzzle.</p>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/libs/stats.min.js"></script>
+    
+    <script>
+        // Main game variables
+        let scene, camera, renderer, controls;
+        let ball, maze, goalPlatform;
+        let switches = [];
+        let movingPlatforms = [];
+        let clock = new THREE.Clock();
+        let gravity = new THREE.Vector3(0, -9.8, 0);
+        let ballVelocity = new THREE.Vector3();
+        let levelComplete = false;
+        
+        // Physics settings
+        const frictionCoefficient = 0.98;
+        const bounceFactor = 0.7;
+        const ballRadius = 0.3;
+        
+        // Initialize the game
+        function init() {
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 10, 12);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+            
+            // Add lights
+            const ambientLight = new THREE.AmbientLight(0x404040, 1);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 10, 7);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.camera.far = 25;
+            directionalLight.shadow.camera.left = -10;
+            directionalLight.shadow.camera.right = 10;
+            directionalLight.shadow.camera.top = 10;
+            directionalLight.shadow.camera.bottom = -10;
+            scene.add(directionalLight);
+            
+            // Add orbit controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enablePan = false;
+            controls.minDistance = 5;
+            controls.maxDistance = 20;
+            controls.maxPolarAngle = Math.PI / 2;
+            
+            // Create the maze
+            createMaze();
+            
+            // Create the ball
+            createBall();
+            
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize);
+            
+            // Hide loading screen
+            document.getElementById('loading').style.display = 'none';
+            
+            // Start animation loop
+            animate();
+        }
+        
+        // Create the maze with different surfaces
+        function createMaze() {
+            // Create maze container
+            maze = new THREE.Group();
+            scene.add(maze);
+            
+            // Create base platform
+            const baseGeometry = new THREE.BoxGeometry(10, 0.5, 10);
+            const baseMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 });
+            const base = new THREE.Mesh(baseGeometry, baseMaterial);
+            base.position.y = -0.25;
+            base.receiveShadow = true;
+            base.userData = { type: 'normal' };
+            maze.add(base);
+            
+            // Create walls
+            createWall(-4.75, 0.5, 0, 0.5, 1, 10); // Left wall
+            createWall(4.75, 0.5, 0, 0.5, 1, 10);  // Right wall
+            createWall(0, 0.5, -4.75, 10, 1, 0.5); // Back wall
+            createWall(0, 0.5, 4.75, 10, 1, 0.5);  // Front wall
+            
+            // Create inner walls for maze
+            createWall(-2, 0.5, -2, 4, 1, 0.5);
+            createWall(2, 0.5, 0, 0.5, 1, 4);
+            createWall(0, 0.5, 2, 4, 1, 0.5);
+            
+            // Create different surfaces
+            createSurface(-3, 0, -3, 2, 0.1, 2, 0xff5252, 'ice'); // Ice - slippery
+            createSurface(3, 0, -3, 2, 0.1, 2, 0x8B4513, 'mud'); // Mud - slow
+            
+            // Create switches
+            createSwitch(-3, 0.25, 3);
+            
+            // Create moving platform
+            createMovingPlatform(3, 0.5, 3, 1.5, 1, 0.2);
+            
+            // Create goal platform
+            const goalGeometry = new THREE.BoxGeometry(1.5, 0.1, 1.5);
+            const goalMaterial = new THREE.MeshPhongMaterial({ color: 0x4CAF50 });
+            goalPlatform = new THREE.Mesh(goalGeometry, goalMaterial);
+            goalPlatform.position.set(0, 0.05, 0);
+            goalPlatform.receiveShadow = true;
+            goalPlatform.userData = { type: 'goal' };
+            maze.add(goalPlatform);
+        }
+        
+        // Create a wall
+        function createWall(x, y, z, width, height, depth) {
+            const geometry = new THREE.BoxGeometry(width, height, depth);
+            const material = new THREE.MeshPhongMaterial({ color: 0x808080 });
+            const wall = new THREE.Mesh(geometry, material);
+            wall.position.set(x, y, z);
+            wall.castShadow = true;
+            wall.receiveShadow = true;
+            wall.userData = { type: 'wall' };
+            maze.add(wall);
+            return wall;
+        }
+        
+        // Create a special surface
+        function createSurface(x, y, z, width, height, depth, color, type) {
+            const geometry = new THREE.BoxGeometry(width, height, depth);
+            const material = new THREE.MeshPhongMaterial({ color: color });
+            const surface = new THREE.Mesh(geometry, material);
+            surface.position.set(x, y, z);
+            surface.receiveShadow = true;
+            surface.userData = { type: type };
+            maze.add(surface);
+            return surface;
+        }
+        
+        // Create a switch
+        function createSwitch(x, y, z) {
+            const geometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 16);
+            const material = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+            const switchObj = new THREE.Mesh(geometry, material);
+            switchObj.position.set(x, y, z);
+            switchObj.rotation.x = Math.PI / 2;
+            switchObj.receiveShadow = true;
+            switchObj.castShadow = true;
+            switchObj.userData = { type: 'switch', activated: false };
+            maze.add(switchObj);
+            switches.push(switchObj);
+            return switchObj;
+        }
+        
+        // Create moving platform
+        function createMovingPlatform(x, y, z, width, depth, height) {
+            const geometry = new THREE.BoxGeometry(width, height, depth);
+            const material = new THREE.MeshPhongMaterial({ color: 0xFFA500 });
+            const platform = new THREE.Mesh(geometry, material);
+            platform.position.set(x, y, z);
+            platform.castShadow = true;
+            platform.receiveShadow = true;
+            platform.userData = { 
+                type: 'moving',
+                startPosition: new THREE.Vector3(x, y, z),
+                endPosition: new THREE.Vector3(x, y, z - 3),
+                speed: 0.02,
+                direction: 1,
+                active: false
+            };
+            maze.add(platform);
+            movingPlatforms.push(platform);
+            return platform;
+        }
+        
+        // Create the ball
+        function createBall() {
+            const geometry = new THREE.SphereGeometry(ballRadius, 32, 32);
+            const material = new THREE.MeshPhongMaterial({ color: 0xDC143C });
+            ball = new THREE.Mesh(geometry, material);
+            ball.position.set(-4, 1, 4); // Starting position
+            ball.castShadow = true;
+            ball.receiveShadow = true;
+            scene.add(ball);
+        }
+        
+        // Handle window resize
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // Update physics
+        function updatePhysics(delta) {
+            if (levelComplete) return;
+            
+            // Get world rotation from maze
+            const worldRotation = new THREE.Vector3(
+                maze.rotation.x,
+                0,
+                maze.rotation.z
+            );
+            
+            // Apply gravity based on world rotation
+            const gravityVector = new THREE.Vector3(
+                Math.sin(worldRotation.z) * gravity.y,
+                gravity.y,
+                -Math.sin(worldRotation.x) * gravity.y
+            );
+            
+            // Apply gravity to velocity
+            ballVelocity.add(gravityVector.multiplyScalar(delta));
+            
+            // Apply friction
+            ballVelocity.multiplyScalar(frictionCoefficient);
+            
+            // Prevent extremely small velocities
+            if (ballVelocity.length() < 0.001) {
+                ballVelocity.set(0, 0, 0);
+            }
+            
+            // Update ball position
+            const newPosition = ball.position.clone().add(ballVelocity.clone().multiplyScalar(delta));
+            
+            // Check collisions with walls and objects
+            const collisions = checkCollisions(newPosition);
+            
+            if (collisions.hasCollision) {
+                // Handle collision based on what was hit
+                if (collisions.hitType === 'wall') {
+                    // Bounce off wall
+                    ballVelocity.reflect(collisions.normal).multiplyScalar(bounceFactor);
+                } else if (collisions.hitType === 'switch' && !collisions.object.userData.activated) {
+                    // Activate switch
+                    activateSwitch(collisions.object);
+                } else if (collisions.hitType === 'goal') {
+                    // Level complete
+                    completeLevel();
+                } else if (collisions.hitType === 'ice') {
+                    // Ice is very slippery - reduce friction
+                    ballVelocity.multiplyScalar(0.99);
+                } else if (collisions.hitType === 'mud') {
+                    // Mud slows down the ball significantly
+                    ballVelocity.multiplyScalar(0.8);
+                }
+            } else {
+                // No collision, update ball position
+                ball.position.copy(newPosition);
+            }
+            
+            // Keep ball from falling through the floor
+            if (ball.position.y < ballRadius) {
+                ball.position.y = ballRadius;
+                ballVelocity.y = 0;
+            }
+            
+            // Update moving platforms
+            updateMovingPlatforms(delta);
+            
+            // Check if ball fell off the maze
+            if (ball.position.y < -5) {
+                resetBall();
+            }
+        }
+        
+        // Check collisions between ball and objects
+        function checkCollisions(newPosition) {
+            const result = {
+                hasCollision: false,
+                hitType: null,
+                normal: new THREE.Vector3(),
+                object: null
+            };
+            
+            // Use raycasting for precise collision detection
+            const raycaster = new THREE.Raycaster();
+            const rayDirections = [
+                new THREE.Vector3(1, 0, 0),   // Right
+                new THREE.Vector3(-1, 0, 0),  // Left
+                new THREE.Vector3(0, 1, 0),   // Up
+                new THREE.Vector3(0, -1, 0),  // Down
+                new THREE.Vector3(0, 0, 1),   // Front
+                new THREE.Vector3(0, 0, -1)   // Back
+            ];
+            
+            let minDistance = Infinity;
+            
+            // Check each direction for closest collision
+            rayDirections.forEach(direction => {
+                raycaster.set(ball.position, direction);
+                const intersects = raycaster.intersectObjects(maze.children, true);
+                
+                if (intersects.length > 0 && intersects[0].distance < ballRadius + 0.1) {
+                    const hitObject = intersects[0].object;
+                    const hitDistance = intersects[0].distance;
+                    
+                    if (hitDistance < minDistance) {
+                        minDistance = hitDistance;
+                        result.hasCollision = true;
+                        result.hitType = hitObject.userData.type;
+                        result.normal = intersects[0].face.normal.clone();
+                        result.object = hitObject;
+                    }
+                }
+            });
+            
+            return result;
+        }
+        
+        // Activate a switch
+        function activateSwitch(switchObj) {
+            switchObj.material.color.set(0x00ff00);
+            switchObj.userData.activated = true;
+            
+            // Activate moving platforms when switch is pressed
+            movingPlatforms.forEach(platform => {
+                platform.userData.active = true;
+            });
+        }
+        
+        // Update moving platforms
+        function updateMovingPlatforms(delta) {
+            movingPlatforms.forEach(platform => {
+                if (platform.userData.active) {
+                    const start = platform.userData.startPosition;
+                    const end = platform.userData.endPosition;
+                    const direction = platform.userData.direction;
+                    const speed = platform.userData.speed;
+                    
+                    // Move platform between start and end positions
+                    if (direction > 0) {
+                        // Moving toward end position
+                        platform.position.lerp(end, speed);
+                        if (platform.position.distanceTo(end) < 0.1) {
+                            platform.userData.direction = -1;
+                        }
+                    } else {
+                        // Moving toward start position
+                        platform.position.lerp(start, speed);
+                        if (platform.position.distanceTo(start) < 0.1) {
+                            platform.userData.direction = 1;
+                        }
+                    }
+                    
+                    // Check if ball is on the platform and move it with the platform
+                    const ballPos = ball.position.clone();
+                    const platformPos = platform.position.clone();
+                    
+                    if (ballPos.y <= platformPos.y + 0.3 && 
+                        ballPos.x >= platformPos.x - platform.geometry.parameters.width/2 && 
+                        ballPos.x <= platformPos.x + platform.geometry.parameters.width/2 && 
+                        ballPos.z >= platformPos.z - platform.geometry.parameters.depth/2 && 
+                        ballPos.z <= platformPos.z + platform.geometry.parameters.depth/2) {
+                        
+                        // Move the ball with the platform
+                        const platformDelta = new THREE.Vector3();
+                        platformDelta.subVectors(platform.position, platform.userData.lastPosition || platform.position.clone());
+                        ball.position.add(platformDelta);
+                    }
+                    
+                    // Store last position for next frame
+                    platform.userData.lastPosition = platform.position.clone();
+                }
+            });
+        }
+        
+        // Complete the level
+        function completeLevel() {
+            if (!levelComplete) {
+                levelComplete = true;
+                document.getElementById('level-complete').style.display = 'block';
+                
+                // Disable controls
+                controls.enabled = false;
+            }
+        }
+        
+        // Reset the ball to starting position
+        function resetBall() {
+            ball.position.set(-4, 1, 4);
+            ballVelocity.set(0, 0, 0);
+        }
+        
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const delta = Math.min(clock.getDelta(), 0.1); // Cap delta to prevent large jumps
+            
+            // Update maze rotation based on controls
+            maze.rotation.x = -controls.getPolarAngle() + Math.PI/2;
+            maze.rotation.y = controls.getAzimuthalAngle();
+            
+            // Update physics
+            updatePhysics(delta);
+            
+            // Update controls
+            controls.update();
+            
+            // Render scene
+            renderer.render(scene, camera);
+        }
+        
+        // Initialize the game when loaded
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

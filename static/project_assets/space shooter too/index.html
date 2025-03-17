@@ -1,0 +1,53 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>space shooter too - Three.js Game</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        #info { 
+            position: absolute; 
+            top: 10px; 
+            width: 100%; 
+            text-align: center; 
+            color: white; 
+            z-index: 100;
+            text-shadow: 1px 1px 1px black;
+            pointer-events: none;
+        }
+        #controls { 
+            position: absolute; 
+            bottom: 10px; 
+            width: 100%; 
+            text-align: center; 
+            color: white; 
+            z-index: 100;
+            text-shadow: 1px 1px 1px black;
+            background-color: rgba(0,0,0,0.5);
+            padding: 10px 0;
+        }
+        .score { 
+            position: absolute; 
+            top: 50px; 
+            width: 100%; 
+            text-align: center; 
+            color: white; 
+            font-size: 24px;
+            text-shadow: 2px 2px 2px black;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h1>space shooter too</h1>
+        <p>dogs shooting penguins</p>
+    </div>
+    <div id="controls">Controls: WASD = Move | Arrow Keys = Alternative movement | Mouse = Look around | Space = Jump | Click = Interact</div>
+    <div id="score" class="score">Score: <span id="score-value">0</span></div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>

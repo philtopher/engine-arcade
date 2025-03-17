@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Idea to Game in Seconds - Create Your Game</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --foreground-rgb: 255, 255, 255;
+            --background-start-rgb: 0, 0, 0;
+            --background-end-rgb: 10, 10, 20;
+            --glow-color: rgba(99, 102, 241, 0.6);
+            --accent-color: rgba(129, 140, 248, 1);
+            --accent-color-dim: rgba(129, 140, 248, 0.3);
+            --neon-pink: rgba(236, 72, 153, 1);
+            --neon-blue: rgba(59, 130, 246, 1);
+            --neon-purple: rgba(139, 92, 246, 1);
+            --cyber-yellow: rgba(250, 204, 21, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            color: rgb(var(--foreground-rgb));
+            background: linear-gradient(to bottom, transparent, rgb(var(--background-end-rgb))) rgb(var(--background-start-rgb));
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Animated background with parallax stars */
+        .bg-stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -20;
+            background-image: 
+                radial-gradient(2px 2px at 20px 30px, rgba(255, 255, 255, 0.8), rgba(0, 0, 0, 0)),
+                radial-gradient(2px 2px at 40px 70px, rgba(255, 255, 255, 0.6), rgba(0, 0, 0, 0)),
+                radial-gradient(3px 3px at 50px 160px, rgba(129, 140, 248, 0.8), rgba(0, 0, 0, 0)),
+                radial-gradient(2px 2px at 90px 40px, rgba(255, 255, 255, 0.6), rgba(0, 0, 0, 0)),
+                radial-gradient(3px 3px at 130px 80px, rgba(236, 72, 153, 0.7), rgba(0, 0, 0, 0)),
+                radial-gradient(2px 2px at 160px 120px, rgba(255, 255, 255, 0.6), rgba(0, 0, 0, 0));
+            background-repeat: repeat;
+            background-size: 200px 200px;
+            animation: stars-animation 100s linear infinite;
+        }
+
+        /* Cyber grid background */
+        .cyber-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(to right, rgba(99, 102, 241, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(99, 102, 241, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -15;
+            transform: perspective(500px) rotateX(60deg);
+            transform-origin: center top;
+            opacity: 0.4;
+        }
+        
+        /* Enhanced gradient orbs with pulse and glow */
+        .gradient-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.2;
+            z-index: -10;
+            transition: all 0.5s ease;
+        }
+
+        .orb-1 {
+            top: 20vh;
+            left: 20vw;
+            width: 40vw;
+            height: 40vw;
+            background: radial-gradient(circle, var(--neon-purple) 0%, rgba(76, 29, 149, 0) 70%);
+            animation: orb-float 20s ease-in-out infinite, orb-pulse 8s ease-in-out infinite;
+        }
+
+        .orb-2 {
+            bottom: 10vh;
+            right: 10vw;
+            width: 35vw;
+            height: 35vw;
+            background: radial-gradient(circle, var(--neon-blue) 0%, rgba(76, 29, 149, 0) 70%);
+            animation: orb-float 25s ease-in-out infinite reverse, orb-pulse 10s ease-in-out infinite;
+        }
+
+        .orb-3 {
+            bottom: 30vh;
+            left: 35vw;
+            width: 25vw;
+            height: 25vw;
+            background: radial-gradient(circle, var(--neon-pink) 0%, rgba(76, 29, 149, 0) 70%);
+            animation: orb-float 18s ease-in-out infinite, orb-pulse 7s ease-in-out infinite;
+            opacity: 0.15;
+        }
+
+        .orb-4 {
+            top: 40vh;
+            right: 30vw;
+            width: 20vw;
+            height: 20vw;
+            background: radial-gradient(circle, var(--cyber-yellow) 0%, rgba(76, 29, 149, 0) 70%);
+            animation: orb-float 22s ease-in-out infinite reverse, orb-pulse 9s ease-in-out infinite;
+            opacity: 0.12;
+        }
+        
+        /* Animations */
+        @keyframes stars-animation {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-200px); }
+        }
+        
+        @keyframes orb-float {
+            0%, 100% { transform: translate(0, 0); }
+            25% { transform: translate(5%, -5%); }
+            50% { transform: translate(0, -8%); }
+            75% { transform: translate(-5%, -3%); }
+        }
+        
+        @keyframes orb-pulse {
+            0%, 100% {
+                opacity: 0.15;
+                filter: blur(100px);
+            }
+            50% {
+                opacity: 0.25;
+                filter: blur(85px);
+            }
+        }
+        
+        @keyframes text-glow {
+            0%, 100% { text-shadow: 0 0 8px rgba(99, 102, 241, 0.6); }
+            50% { text-shadow: 0 0 15px rgba(99, 102, 241, 0.9), 0 0 30px rgba(99, 102, 241, 0.5); }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes border-glow {
+            0%, 100% {
+                border-color: rgba(99, 102, 241, 0.3);
+                box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
+            }
+            50% {
+                border-color: rgba(129, 140, 248, 0.6);
+                box-shadow: 0 0 25px rgba(129, 140, 248, 0.4);
+            }
+        }
+        
+        /* Main content container styles */
+        .main-container {
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 220px 20px 20px;
+            z-index: 1;
+            position: relative;
+        }
+        
+        /* Logo/Header styles */
+        .logo-container {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 100;
+        }
+        
+        .logo-image {
+            max-width: 200px;
+            display: block;
+        }
+        
+        @keyframes logo-pulse {
+            0%, 100% {
+                transform: scale(1);
+                filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.6));
+            }
+            50% {
+                transform: scale(1.08);
+                filter: drop-shadow(0 0 20px rgba(99, 102, 241, 0.9));
+            }
+        }
+        
+        /* Main heading styles */
+        .heading-container {
+            text-align: center;
+            margin-bottom: 3rem;
+            position: relative;
+        }
+        
+        .main-heading {
+            font-size: 3.5rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            display: inline-block;
+            animation: text-glow 3s ease-in-out infinite;
+        }
+        
+        .sub-heading {
+            font-size: 1.25rem;
+            color: #a5b4fc;
+            margin-top: 1rem;
+            opacity: 0;
+            animation: fadeIn 1s ease-in forwards 1s;
+        }
+        
+        /* Form container styles */
+        .card {
+            background: rgba(24, 24, 27, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(63, 63, 70, 0.7);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+            animation: border-glow 4s ease-in-out infinite;
+            margin-bottom: 2rem;
+        }
+        
+        .input {
+            width: 100%;
+            padding: 1rem 1.5rem;
+            border-radius: 0.75rem;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(63, 63, 70, 0.8);
+            color: white;
+            font-size: 1.125rem;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+        
+        .input:focus {
+            border-color: rgba(99, 102, 241, 0.6);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+        }
+        
+        /* Button styles */
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .icon-button {
+            padding: 0.5rem;
+            background: transparent;
+            border: none;
+            color: #a5b4fc;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .icon-button:hover {
+            color: white;
+            transform: scale(1.1);
+        }
+        
+        .submit-btn {
+            background: linear-gradient(to right, #4f46e5, #6366f1);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(129, 140, 248, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .submit-btn:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 0 25px rgba(99, 102, 241, 0.6);
+        }
+        
+        .submit-btn:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: 0.5s;
+        }
+        
+        .submit-btn:hover:before {
+            left: 100%;
+        }
+        
+        .submit-btn[disabled] {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        /* Status message */
+        .status-message {
+            display: none;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            text-align: center;
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        .status-error {
+            background: rgba(220, 38, 38, 0.2);
+            border: 1px solid rgba(220, 38, 38, 0.4);
+            color: #fca5a5;
+        }
+        
+        /* Category buttons */
+        .categories-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-bottom: 3rem;
+        }
+        
+        .category-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(24, 24, 27, 0.7);
+            border: 1px solid rgba(63, 63, 70, 0.8);
+            border-radius: 9999px;
+            color: white;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .category-btn:hover {
+            background: rgba(39, 39, 42, 0.8);
+            transform: translateY(-2px);
+        }
+        
+        .category-selected {
+            background: rgba(79, 70, 229, 0.2);
+            border-color: rgba(99, 102, 241, 0.5);
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
+        }
+        
+        .category-icon {
+            display: inline-flex;
+            transition: transform 0.3s ease;
+        }
+        
+        .category-selected .category-icon {
+            transform: scale(1.1);
+        }
+        
+        /* Examples section */
+        .examples-section {
+            max-width: 900px;
+            margin: 0 auto 3rem auto;
+            padding: 0 1rem;
+        }
+        
+        .examples-heading {
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 0.75rem;
+            color: #c7d2fe;
+            animation: text-glow 3s ease-in-out infinite;
+        }
+        
+        .examples-subheading {
+            text-align: center;
+            color: #a5b4fc;
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+        }
+        
+        .examples-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 1rem;
+        }
+        
+        .example-card {
+            background: rgba(24, 24, 27, 0.6);
+            border: 1px solid rgba(63, 63, 70, 0.5);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .example-card:hover {
+            background: rgba(39, 39, 42, 0.7);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-5px);
+        }
+        
+        .example-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .example-icon {
+            font-size: 2rem;
+            transition: transform 0.3s ease;
+        }
+        
+        .example-card:hover .example-icon {
+            transform: scale(1.1);
+        }
+        
+        .example-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #c7d2fe;
+        }
+        
+        .example-text {
+            color: #a5b4fc;
+            font-size: 0.875rem;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        .example-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 2px;
+            width: 0;
+            background: linear-gradient(to right, var(--neon-purple), var(--neon-blue));
+            transition: width 0.4s ease;
+        }
+        
+        .example-card:hover::after {
+            width: 100%;
+        }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 2rem 0;
+            color: rgba(165, 180, 252, 0.7);
+            position: relative;
+            font-size: 0.875rem;
+        }
+        
+        /* Loading spinner */
+        .spinner {
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background effects -->
+    <div class="bg-stars"></div>
+    <div class="cyber-grid"></div>
+    <div class="gradient-orb orb-1"></div>
+    <div class="gradient-orb orb-2"></div>
+    <div class="gradient-orb orb-3"></div>
+    <div class="gradient-orb orb-4"></div>
+    
+    <!-- Logo in top left corner -->
+    <div class="logo-container">
+        <img src="/static/images/enginearcadelogo.png" alt="Idea2Game Logo" class="logo-image">
+    </div>
+
+    <div class="main-container">
+        
+        <!-- Main heading -->
+        <div class="heading-container">
+            <h1 class="main-heading" data-text="Idea to Game in Seconds">Idea to Game in Seconds</h1>
+            <p class="sub-heading">Create custom 3D web games with natural language</p>
+        </div>
+        
+        <!-- Game creation form -->
+        <div class="card">
+            <form id="project-form">
+                <textarea 
+                    id="prompt" 
+                    class="input" 
+                    rows="4" 
+                    placeholder="Describe your game idea..." 
+                    required
+                ></textarea>
+                
+                <div class="button-container">
+                    <div class="action-buttons">
+                        <button type="button" class="icon-button" title="Share">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                        </button>
+                        <button type="button" class="icon-button" title="Download">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        </button>
+                    </div>
+                    
+                    <button type="submit" id="submit-btn" class="submit-btn">
+                        <!-- <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="20 21 12 13.44 4 21 4 3 20 3 20 21"/></svg> -->
+                        Generate & Play Game
+                    </button>
+                </div>
+            </form>
+            
+            <div id="status-message" class="status-message"></div>
+        </div>
+        
+        <!-- Game type selection -->
+        <div class="categories-container">
+            <button class="category-btn category-selected" data-category="3D Shooter">
+                <span class="category-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                </span>
+                3D Shooter
+            </button>
+            <button class="category-btn" data-category="Platformer">
+                <span class="category-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
+                </span>
+                Platformer
+            </button>
+            <button class="category-btn" data-category="Racing">
+                <span class="category-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                </span>
+                Racing
+            </button>
+            <button class="category-btn" data-category="Puzzle">
+                <span class="category-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.439 7.85c-.049.322.059.648.289.878l1.568 1.568c.47.47.706 1.087.706 1.704s-.235 1.233-.706 1.704l-1.611 1.611a.98.98 0 0 1-.837.276c-.47-.07-.802-.48-.743-.95l.925-7.6-15.1 15.1c-.372.372-.372.975 0 1.347s.975.372 1.347 0L19.34 8.23c.323-.047.65.06.88.29l1.568 1.568c.47.47.706 1.087.706 1.704s-.235 1.233-.706 1.704l-1.611 1.611a.98.98 0 0 1-.837.276c-.47-.07-.802-.48-.743-.95l.925-7.6-15.1 15.1c-.372.372-.372.975 0 1.347s.975.372 1.347 0L20.177 9.12c-.047-.323.06-.65.29-.88l1.568-1.568c.47-.47 1.087-.706 1.704-.706s1.233.235 1.704.706l1.611 1.611a.98.98 0 0 1 .276.837c-.07.47-.48.802-.95.743l-7.6-.925 15.1 15.1c.372.372.975.372 1.347 0s.372-.975 0-1.347L19.439 7.85z"/></svg>
+                </span>
+                Puzzle
+            </button>
+            <button class="category-btn" data-category="Custom">
+                <span class="category-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="14.31" y1="8" x2="20.05" y2="17.94"/><line x1="9.69" y1="8" x2="21.17" y2="8"/><line x1="7.38" y1="12" x2="13.12" y2="2.06"/><line x1="9.69" y1="16" x2="3.95" y2="6.06"/><line x1="14.31" y1="16" x2="2.83" y2="16"/><line x1="16.62" y1="12" x2="10.88" y2="21.94"/></svg>
+                </span>
+                Custom
+            </button>
+        </div>
+        
+        <!-- Examples section -->
+        <div class="examples-section">
+            <h2 class="examples-heading" data-text="Try one of these examples">Try one of these examples</h2>
+            <p class="examples-subheading">Click on any example to use it as your starting point</p>
+            
+            <div class="examples-grid">
+                <div class="example-card" data-prompt="Create a first-person shooter game with 3D space station environment, laser weapons, and alien enemies that attack in waves. Include power-ups and a scoring system.">
+                    <div class="example-header">
+                        <div class="example-icon">🚀</div>
+                        <h3 class="example-title">Space Station Defender</h3>
+                    </div>
+                    <p class="example-text">First-person shooter with 3D space station, laser weapons and alien enemies attacking in waves</p>
+                </div>
+                
+                <div class="example-card" data-prompt="Create a 3D platformer game with a cute robot character who can jump, double-jump, and collect energy crystals. Include moving platforms and obstacles.">
+                    <div class="example-header">
+                        <div class="example-icon">🤖</div>
+                        <h3 class="example-title">Robot Adventure</h3>
+                    </div>
+                    <p class="example-text">3D platformer with a cute robot character who jumps and collects energy crystals</p>
+                </div>
+                
+                <div class="example-card" data-prompt="Create a racing game with futuristic hovercars on a neon track with loops and jumps. Include boost pads, obstacles, and opponents to race against.">
+                    <div class="example-header">
+                        <div class="example-icon">🏎️</div>
+                        <h3 class="example-title">Neon Racers</h3>
+                    </div>
+                    <p class="example-text">Futuristic racing game with hovercars on a neon track with loops and jumps</p>
+                </div>
+                
+                <div class="example-card" data-prompt="Create a 3D puzzle game where the player rotates the world to guide a ball through a maze. Include switches, moving platforms, and different types of surfaces.">
+                    <div class="example-header">
+                        <div class="example-icon">🧩</div>
+                        <h3 class="example-title">Gravity Maze</h3>
+                    </div>
+                    <p class="example-text">3D puzzle game where you rotate the world to guide a ball through complex mazes</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p>Powered by Three.js, GPT-Engineer and AI</p>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Form submission logic
+            document.getElementById('project-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Get the prompt text
+                const prompt = document.getElementById('prompt').value;
+                if (!prompt) {
+                    showStatusMessage('Please describe your game idea', true);
+                    return;
+                }
+                
+                // Generate a random game name based on timestamp and random string
+                const timestamp = new Date().getTime();
+                const randomStr = Math.random().toString(36).substring(2, 8);
+                const projectName = `game-${timestamp}-${randomStr}`;
+                
+                // Show loading state
+                const submitBtn = document.getElementById('submit-btn');
+                const originalBtnText = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `
+                    <svg class="spinner" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M12 6v6l4 2"></path>
+                    </svg> Creating your game...
+                `;
+                
+                // Show loading message
+                showStatusMessage('Creating your game, please wait...', false);
+                
+                // Get the selected category
+                const selectedCategory = document.querySelector('.category-selected');
+                const category = selectedCategory ? selectedCategory.getAttribute('data-category') : 'Custom';
+                
+                // Add category to prompt if selected
+                let fullPrompt = prompt;
+                if (category && category !== 'Custom') {
+                    fullPrompt = `Create a ${category} game: ${prompt}`;
+                }
+                
+                // Create project
+                fetch('/create_project', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        'project_name': projectName,
+                        'prompt': fullPrompt
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Show success message before redirecting
+                        showStatusMessage('Game created successfully! Redirecting to game...', false);
+                        
+                        // Redirect directly to the play page with prompt as parameter
+                        setTimeout(() => {
+                            // Encode the prompt for URL
+                            const encodedPrompt = encodeURIComponent(fullPrompt);
+                            window.location.href = `/play/${projectName}?prompt=${encodedPrompt}&new=true`;
+                        }, 1000);
+                    } else {
+                        // Show error
+                        showStatusMessage(data.message || 'Error creating project', true);
+                        
+                        // Reset button
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalBtnText;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    
+                    // Show error message
+                    showStatusMessage('An error occurred while creating the project', true);
+                    
+                    // Reset button
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnText;
+                });
+            });
+            
+            // Category button selection
+            const categoryButtons = document.querySelectorAll('.category-btn');
+            categoryButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Remove selection from all buttons
+                    categoryButtons.forEach(btn => btn.classList.remove('category-selected'));
+                    
+                    // Add selection to clicked button
+                    this.classList.add('category-selected');
+                    
+                    // Update prompt placeholder based on category
+                    const category = this.getAttribute('data-category');
+                    const promptInput = document.getElementById('prompt');
+                    
+                    // Set placeholder based on category
+                    switch(category) {
+                        case '3D Shooter':
+                            promptInput.placeholder = 'Describe your shooter game with details on weapons, enemies and environment...';
+                            break;
+                        case 'Platformer':
+                            promptInput.placeholder = 'Describe your platformer with details on character abilities, obstacles and level design...';
+                            break;
+                        case 'Racing':
+                            promptInput.placeholder = 'Describe your racing game with details on vehicles, tracks and game mechanics...';
+                            break;
+                        case 'Puzzle':
+                            promptInput.placeholder = 'Describe your puzzle game with details on mechanics, challenges and progression...';
+                            break;
+                        default:
+                            promptInput.placeholder = 'Describe your game idea in detail...';
+                    }
+                    
+                    // Focus on the prompt textarea
+                    promptInput.focus();
+                });
+            });
+            
+            // Example card functionality
+            const exampleCards = document.querySelectorAll('.example-card');
+            exampleCards.forEach(card => {
+                card.addEventListener('click', function() {
+                    const promptText = this.getAttribute('data-prompt');
+                    const promptInput = document.getElementById('prompt');
+                    
+                    // Set prompt text and focus
+                    promptInput.value = promptText;
+                    promptInput.focus();
+                    
+                    // Smooth scroll to form
+                    document.querySelector('.card').scrollIntoView({ behavior: 'smooth' });
+                    
+                    // If this example is related to a specific category, select that category
+                    const exampleTitle = this.querySelector('.example-title').textContent;
+                    if (exampleTitle.includes('Shooter') || exampleTitle.includes('FPS')) {
+                        selectCategory('3D Shooter');
+                    } else if (exampleTitle.includes('Platformer') || exampleTitle.includes('Adventure')) {
+                        selectCategory('Platformer');
+                    } else if (exampleTitle.includes('Racing') || exampleTitle.includes('Racer')) {
+                        selectCategory('Racing');
+                    } else if (exampleTitle.includes('Puzzle') || exampleTitle.includes('Maze')) {
+                        selectCategory('Puzzle');
+                    }
+                });
+            });
+            
+            // Helper function to select a category
+            function selectCategory(categoryName) {
+                const categoryBtn = document.querySelector(`.category-btn[data-category="${categoryName}"]`);
+                if (categoryBtn) {
+                    categoryButtons.forEach(btn => btn.classList.remove('category-selected'));
+                    categoryBtn.classList.add('category-selected');
+                }
+            }
+            
+            // Helper function for status messages
+            function showStatusMessage(message, isError = false) {
+                const statusMessage = document.getElementById('status-message');
+                statusMessage.innerHTML = message;
+                
+                if (isError) {
+                    statusMessage.className = 'status-message status-error';
+                } else {
+                    statusMessage.className = 'status-message';
+                    statusMessage.style.backgroundColor = 'rgba(79, 70, 229, 0.1)';
+                    statusMessage.style.border = '1px solid rgba(99, 102, 241, 0.3)';
+                    statusMessage.style.color = '#a5b4fc';
+                }
+                
+                statusMessage.style.display = 'block';
+                
+                // Only auto-hide non-error messages
+                if (!isError) {
+                    setTimeout(() => {
+                        statusMessage.style.display = 'none';
+                    }, 5000);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

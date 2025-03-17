@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Builder - {{ project_name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.1/socket.io.min.js"></script>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+        
+        .split-container {
+            display: flex;
+            height: 100vh;
+            width: 100%;
+        }
+        
+        .chat-panel {
+            width: 30%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #ddd;
+            background-color: #f8f9fa;
+        }
+        
+        .game-panel {
+            width: 70%;
+            height: 100%;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-input {
+            padding: 15px;
+            border-top: 1px solid #ddd;
+            background-color: white;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            max-width: 85%;
+            padding: 10px 15px;
+            border-radius: 15px;
+        }
+        
+        .user-message {
+            align-self: flex-end;
+            background-color: #0d6efd;
+            color: white;
+        }
+        
+        .ai-message {
+            align-self: flex-start;
+            background-color: #e9ecef;
+        }
+        
+        .chat-input textarea {
+            width: 100%;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            resize: none;
+            padding: 10px;
+            height: 80px;
+        }
+        
+        .iframe-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        
+        .chat-header {
+            padding: 15px;
+            background-color: #343a40;
+            color: white;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .game-header {
+            padding: 15px;
+            background-color: #343a40;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .chat-controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .waiting {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-style: italic;
+            color: #6c757d;
+            padding: 10px;
+        }
+        
+        .loading-dots::after {
+            content: '';
+            animation: dots 1.5s infinite;
+        }
+        
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+        
+        .chat-title {
+            font-size: 1.1em;
+        }
+        
+        .code-generation {
+            overflow-y: auto;
+            padding: 20px;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            font-family: monospace;
+            height: 50%;
+            display: none;
+        }
+        
+        .code-block {
+            margin-bottom: 15px;
+            border-bottom: 1px solid #555;
+            padding-bottom: 15px;
+        }
+        
+        .code-output {
+            white-space: pre-wrap;
+            margin: 0;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        
+        .loading-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            z-index: 10;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            overflow-y: auto;
+            transition: opacity 0.5s ease-in-out;
+        }
+        
+        .loading-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+        
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #fff;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-progress {
+            font-size: 18px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .loading-stream-container {
+            width: 100%;
+            max-width: 800px;
+            max-height: 60vh;
+            overflow-y: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: left;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .loading-code-stream {
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            color: #7FFF7F; /* Light green for terminal-like text */
+            line-height: 1.5;
+        }
+        
+        .stream-line {
+            margin-bottom: 8px;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        .progress-line {
+            color: #5FB3FF; /* Light blue for progress updates */
+        }
+        
+        .complete-line {
+            color: #FFD700; /* Gold for completion message */
+            font-weight: bold;
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            background-color: rgba(0, 100, 0, 0.3);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .loading-details {
+            max-width: 90%;
+            font-size: 14px;
+            opacity: 0.8;
+            margin-top: 10px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .tab-buttons {
+            background-color: #555;
+            display: flex;
+        }
+        
+        .tab-button {
+            padding: 10px 15px;
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            opacity: 0.7;
+        }
+        
+        .tab-button.active {
+            opacity: 1;
+            border-bottom: 2px solid white;
+        }
+    </style>
+</head>
+<body>
+    <div class="split-container">
+        <!-- Chat Panel (Left Side) -->
+        <div class="chat-panel">
+            <div class="chat-header">
+                <div class="chat-title">Game Builder AI Chat</div>
+                <div class="chat-controls">
+                    <a href="/project/{{ project_name }}" class="btn btn-sm btn-outline-light">View Code</a>
+                    <a href="/" class="btn btn-sm btn-outline-light">Home</a>
+                </div>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="message ai-message">
+                    Welcome to the Game Builder! I'm your AI assistant. I've created a basic game based on your description: "{{ project_name }}". 
+                    You can ask me to modify any aspect of the game - like "add more enemies", "change the background to a forest", or "make the player move faster".
+                    What would you like to change?
+                </div>
+            </div>
+            <div class="chat-input">
+                <textarea id="userInput" placeholder="Type your game modification request here..." class="form-control"></textarea>
+                <div class="d-flex justify-content-between mt-2">
+                    <button class="btn btn-secondary" id="regenerateBtn">Regenerate Game</button>
+                    <button class="btn btn-primary" id="sendBtn">Send</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Game Panel (Right Side) -->
+        <div class="game-panel">
+            <div class="game-header">
+                <div class="project-name">{{ project_name }}</div>
+                <div class="tab-controls">
+                    <button class="btn btn-sm btn-outline-light tab-toggle active" data-target="preview">Game Preview</button>
+                    <button class="btn btn-sm btn-outline-light tab-toggle" data-target="code">Generation Status</button>
+                </div>
+            </div>
+            
+            <div id="preview-tab" class="iframe-container">
+                <iframe id="gameFrame" src="/play/{{ project_name }}" allow="fullscreen"></iframe>
+                
+                <!-- Loading overlay -->
+                <div id="loading-overlay" class="loading-container hidden">
+                    <div class="loading-header">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-progress">Generating your game...</div>
+                    </div>
+                    <div class="loading-stream-container">
+                        <div id="loading-code-stream" class="loading-code-stream"></div>
+                    </div>
+                    <div class="loading-details">Real-time generation - you'll see the game automatically when it's ready.</div>
+                </div>
+            </div>
+            
+            <div id="code-tab" class="code-generation hidden">
+                <div id="generation-logs">
+                    <div class="code-block">
+                        <div class="code-title">🔄 Waiting for GPT Engineer to start processing...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatMessages = document.getElementById('chatMessages');
+            const userInput = document.getElementById('userInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const regenerateBtn = document.getElementById('regenerateBtn');
+            const gameFrame = document.getElementById('gameFrame');
+            const previewTab = document.getElementById('preview-tab');
+            const codeTab = document.getElementById('code-tab');
+            const loadingOverlay = document.getElementById('loading-overlay');
+            const generationLogs = document.getElementById('generation-logs');
+            const tabButtons = document.querySelectorAll('.tab-toggle');
+            
+            // Tab switching functionality
+            tabButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const target = this.getAttribute('data-target');
+                    
+                    // Remove active class from all buttons
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    
+                    // Add active class to clicked button
+                    this.classList.add('active');
+                    
+                    // Hide all tabs
+                    previewTab.classList.add('hidden');
+                    codeTab.classList.add('hidden');
+                    
+                    // Show selected tab
+                    if (target === 'preview') {
+                        previewTab.classList.remove('hidden');
+                    } else if (target === 'code') {
+                        codeTab.classList.remove('hidden');
+                    }
+                });
+            });
+            
+            // Function to add code to the generation logs
+            function addCodeLog(title, code, language) {
+                const codeBlock = document.createElement('div');
+                codeBlock.className = 'code-block';
+                
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'code-title';
+                titleDiv.textContent = title;
+                codeBlock.appendChild(titleDiv);
+                
+                if (code) {
+                    const codeOutput = document.createElement('pre');
+                    codeOutput.className = 'code-output';
+                    
+                    const codeElement = document.createElement('code');
+                    codeElement.className = language || 'language-javascript';
+                    codeElement.textContent = code;
+                    codeOutput.appendChild(codeElement);
+                    codeBlock.appendChild(codeOutput);
+                    
+                    // Highlight code
+                    hljs.highlightElement(codeElement);
+                }
+                
+                generationLogs.appendChild(codeBlock);
+                codeTab.scrollTop = codeTab.scrollHeight;
+            }
+            
+            // Handle sending messages
+            function sendMessage() {
+                const message = userInput.value.trim();
+                if (message) {
+                    // Add user message to chat
+                    addMessage(message, 'user');
+                    
+                    // Clear input
+                    userInput.value = '';
+                    
+                    // Show AI is thinking
+                    const waitingDiv = document.createElement('div');
+                    waitingDiv.className = 'waiting';
+                    waitingDiv.innerHTML = 'AI is processing your request<span class="loading-dots"></span>';
+                    chatMessages.appendChild(waitingDiv);
+                    
+                    // Scroll to bottom
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                    
+                    // Show loading overlay
+                    loadingOverlay.classList.remove('hidden');
+                    
+                    // Clear previous generation logs and add initial log
+                    generationLogs.innerHTML = '';
+                    addCodeLog('🔄 Initializing gpt-engineer for your request...');
+                    addCodeLog('🔄 This will use the actual gpt-engineer CLI to generate your code modifications...');
+                    
+                    // Always switch to the code tab to show generation progress
+                    tabButtons.forEach(btn => {
+                        if (btn.getAttribute('data-target') === 'code') {
+                            btn.click();
+                        }
+                    });
+                    
+                    // Set up Server-Sent Events to get real-time updates
+                    const evtSource = new EventSource(`/stream_gpt_engineer_output?project_name={{ project_name }}`);
+                    
+                    // Get code stream element
+                    const codeStreamElement = document.getElementById('loading-code-stream');
+                    
+                    evtSource.onmessage = function(event) {
+                        try {
+                            const data = JSON.parse(event.data);
+                            if (data.type === 'log') {
+                                // Add to code logs in the tab
+                                addCodeLog(data.title || '🔄 Processing...', data.content || '');
+                                
+                                // Also add to the streaming overlay for better visibility
+                                const streamLine = document.createElement('div');
+                                streamLine.className = 'stream-line';
+                                if (data.title) {
+                                    streamLine.innerText = `${data.title}${data.content ? '\n' + data.content : ''}`;
+                                }
+                                codeStreamElement.appendChild(streamLine);
+                                codeStreamElement.scrollTop = codeStreamElement.scrollHeight;
+                                
+                                // Update the loading progress text to show what's happening
+                                if (data.title && !data.title.includes('complete')) {
+                                    document.querySelector('.loading-progress').innerText = 
+                                        data.title.replace('🔄', '').trim() || 'Generating your game...';
+                                }
+                            } else if (data.type === 'progress') {
+                                // Update progress indicator
+                                const progressElement = document.getElementById('progress-bar');
+                                if (progressElement) {
+                                    progressElement.style.width = `${data.value}%`;
+                                }
+                                
+                                // Add progress percentage to the loading stream
+                                const progressLine = document.createElement('div');
+                                progressLine.className = 'stream-line progress-line';
+                                progressLine.innerText = `Progress: ${data.value}%`;
+                                codeStreamElement.appendChild(progressLine);
+                                codeStreamElement.scrollTop = codeStreamElement.scrollHeight;
+                            } else if (data.type === 'complete') {
+                                // Final update when done
+                                evtSource.close();
+                                
+                                // Update the loading progress text
+                                document.querySelector('.loading-progress').innerText = "Generation complete! Loading game...";
+                                
+                                // Add final message to code stream
+                                const completeLine = document.createElement('div');
+                                completeLine.className = 'stream-line complete-line';
+                                completeLine.innerHTML = '✅ <strong>Generation complete!</strong> Your game is ready to play.';
+                                codeStreamElement.appendChild(completeLine);
+                                codeStreamElement.scrollTop = codeStreamElement.scrollHeight;
+                                
+                                // Add final code log with proper formatting
+                                if (data.final_code && data.final_code.trim() !== '') {
+                                    addCodeLog('✅ Code generation complete!', data.final_code, 'language-javascript');
+                                    
+                                    // Auto-refresh the game preview and hide loading after a short delay
+                                    setTimeout(() => {
+                                        // Hide loading overlay with a fade-out effect
+                                        loadingOverlay.style.opacity = '0';
+                                        setTimeout(() => {
+                                            loadingOverlay.classList.add('hidden');
+                                            loadingOverlay.style.opacity = '1';
+                                        }, 500);
+                                        
+                                        // Switch to preview tab
+                                        tabButtons.forEach(btn => {
+                                            if (btn.getAttribute('data-target') === 'preview') {
+                                                btn.click();
+                                            }
+                                        });
+                                        
+                                        // Refresh game iframe
+                                        gameFrame.src = gameFrame.src;
+                                        
+                                        // Add AI message that the game is ready
+                                        addMessage("Your game has been updated and is ready to play! You can continue making modifications or try out your game in the preview.", 'ai');
+                                    }, 1500);
+                                } else {
+                                    addCodeLog('✅ Code generation complete!', 'Game code was updated successfully. Check the preview tab.', 'language-javascript');
+                                    setTimeout(() => {
+                                        loadingOverlay.classList.add('hidden');
+                                    }, 1000);
+                                    addMessage("Your game has been updated and is ready to play!", 'ai');
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Error parsing SSE data:', e);
+                        }
+                    };
+                    
+                    // Add a progress bar to the generation logs
+                    const progressDiv = document.createElement('div');
+                    progressDiv.className = 'progress mt-3 mb-3';
+                    progressDiv.innerHTML = `<div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                           role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%"></div>`;
+                    generationLogs.appendChild(progressDiv);
+                    
+                    // Send to backend
+                    fetch('/update_game', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            project_name: '{{ project_name }}',
+                            modification: message
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        // Handle based on status
+                        if (data.status === 'started') {
+                            // Process has been started successfully, SSE will handle the updates
+                            // We don't close the event source, as it will be used to stream progress
+                            
+                            // Remove waiting message
+                            if (chatMessages.contains(waitingDiv)) {
+                                chatMessages.removeChild(waitingDiv);
+                            }
+                            
+                            // Add initial AI response to chat
+                            addMessage(data.message, 'ai');
+                            
+                            // The event source will handle progress updates and completion
+                            // We don't need to do anything else here
+                            
+                            // Handle event source completion event
+                            evtSource.addEventListener('complete', function(event) {
+                                // Hide loading overlay
+                                loadingOverlay.classList.add('hidden');
+                                
+                                // Switch back to preview tab after a short delay
+                                setTimeout(() => {
+                                    tabButtons.forEach(btn => {
+                                        if (btn.getAttribute('data-target') === 'preview') {
+                                            btn.click();
+                                        }
+                                    });
+                                    
+                                    // Refresh game iframe to show changes
+                                    gameFrame.src = gameFrame.src;
+                                }, 2000);
+                            });
+                        } else {
+                            // For backward compatibility or error cases
+                            // Close event source if it's still open
+                            evtSource.close();
+                            
+                            // Remove waiting message
+                            if (chatMessages.contains(waitingDiv)) {
+                                chatMessages.removeChild(waitingDiv);
+                            }
+                            
+                            if (data.status === 'success') {
+                                // Add AI response to chat
+                                addMessage(data.message, 'ai');
+                                
+                                // Process gpt-engineer output steps
+                                if (data.process_steps && data.process_steps.length > 0) {
+                                    data.process_steps.forEach(step => {
+                                        addCodeLog(`🔄 ${step}`);
+                                    });
+                                }
+                                
+                                // Add final code log
+                                if (data.code) {
+                                    addCodeLog('✅ Game modification complete! Refreshing preview...', data.code, 'language-javascript');
+                                }
+                                
+                                // Hide loading overlay
+                                loadingOverlay.classList.add('hidden');
+                                
+                                // Switch back to preview tab after a short delay
+                                setTimeout(() => {
+                                    tabButtons.forEach(btn => {
+                                        if (btn.getAttribute('data-target') === 'preview') {
+                                            btn.click();
+                                        }
+                                    });
+                                    
+                                    // Refresh game iframe to show changes
+                                    gameFrame.src = gameFrame.src;
+                                }, 2000);
+                            } else {
+                                // Handle error
+                                addMessage(data.message || 'An error occurred during modification', 'ai');
+                                addCodeLog('❌ Error during game modification', data.message || 'Unknown error');
+                                loadingOverlay.classList.add('hidden');
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        // Close event source if it's still open
+                        evtSource.close();
+                        
+                        // Remove waiting message if it exists
+                        if (chatMessages.contains(waitingDiv)) {
+                            chatMessages.removeChild(waitingDiv);
+                        }
+                        
+                        // Hide loading overlay
+                        loadingOverlay.classList.add('hidden');
+                        
+                        // Add error message
+                        addMessage('Sorry, there was an error updating your game. Please try again.', 'ai');
+                        
+                        // Add error code log
+                        addCodeLog('❌ Error during game modification', error.toString());
+                        
+                        console.error('Error:', error);
+                    });
+                }
+            }
+            
+            // Add message to chat
+            function addMessage(message, sender) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${sender}-message`;
+                messageDiv.textContent = message;
+                chatMessages.appendChild(messageDiv);
+                
+                // Scroll to bottom
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+            
+            // Simulate a real-time code generation update
+            function simulateCodeGeneration() {
+                let progress = 0;
+                const languages = ['javascript', 'html', 'css'];
+                const titles = [
+                    '🔄 Analyzing your request...',
+                    '🧠 Generating game logic...',
+                    '🎮 Creating game mechanics...',
+                    '🖌️ Applying visual changes...',
+                    '🔧 Optimizing code...',
+                    '✅ Finalizing changes...'
+                ];
+                
+                // Clear previous logs
+                generationLogs.innerHTML = '';
+                
+                // Add initial log
+                addCodeLog(titles[0]);
+                
+                const interval = setInterval(() => {
+                    progress++;
+                    
+                    if (progress < titles.length) {
+                        // Generate some sample code for demonstration
+                        const codeSample = `// GPT Engineer is working on your request
+// ${titles[progress].replace('🔄 ', '').replace('🧠 ', '').replace('🎮 ', '').replace('🖌️ ', '').replace('🔧 ', '').replace('✅ ', '')}
+
+function updateGame() {
+  // Making changes based on your request
+  console.log("Updating game elements");
+  
+  // More code will appear here
+  ${Array(progress + 1).fill(0).map((_, i) => `// Step ${i+1} completed`).join('\n  ')}
+}`;
+                        
+                        // Add a new code log
+                        addCodeLog(titles[progress], codeSample, `language-${languages[progress % languages.length]}`);
+                    } else {
+                        clearInterval(interval);
+                    }
+                }, 1500);
+                
+                return interval;
+            }
+            
+            // Regenerate the game
+            regenerateBtn.addEventListener('click', function() {
+                // Show regenerating message
+                addMessage('Regenerating your game from scratch using gpt-engineer...', 'ai');
+                
+                // Show loading overlay
+                loadingOverlay.classList.remove('hidden');
+                
+                // Switch to code tab
+                tabButtons.forEach(btn => {
+                    if (btn.getAttribute('data-target') === 'code') {
+                        btn.click();
+                    }
+                });
+                
+                // Clear previous generation logs and add initial log
+                generationLogs.innerHTML = '';
+                addCodeLog('🔄 Initializing gpt-engineer to completely regenerate your game...');
+                addCodeLog('🔄 This will use the actual gpt-engineer CLI to generate a new game from your prompt...');
+                
+                // Add a progress bar to the generation logs
+                const progressDiv = document.createElement('div');
+                progressDiv.className = 'progress mt-3 mb-3';
+                progressDiv.innerHTML = `<div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                       role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%"></div>`;
+                generationLogs.appendChild(progressDiv);
+                
+                // Set up Server-Sent Events to get real-time updates
+                const evtSource = new EventSource(`/stream_gpt_engineer_output?project_name={{ project_name }}`);
+                
+                evtSource.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.type === 'log') {
+                            addCodeLog(data.title || '🔄 Processing...', data.content || '');
+                        } else if (data.type === 'progress') {
+                            // Update progress indicator
+                            const progressElement = document.getElementById('progress-bar');
+                            if (progressElement) {
+                                progressElement.style.width = `${data.value}%`;
+                            }
+                        } else if (data.type === 'complete') {
+                            // Final update when done
+                            evtSource.close();
+                            addCodeLog('✅ Code generation complete!', data.final_code || '', 'language-javascript');
+                        }
+                    } catch (e) {
+                        console.error('Error parsing SSE data:', e);
+                    }
+                };
+                
+                // Call regenerate endpoint
+                fetch('/run_gpte', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: new URLSearchParams({
+                        'project_name': '{{ project_name }}'
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Close event source if it's still open
+                    evtSource.close();
+                    
+                    // Process logs from gpt-engineer
+                    if (data.logs && data.logs.length > 0) {
+                        data.logs.forEach(log => {
+                            addCodeLog(`🔄 ${log}`);
+                        });
+                    }
+                    
+                    // Add final log
+                    addCodeLog('✅ Game regeneration complete!', data.code || 'Game code successfully regenerated.');
+                    
+                    // Add success message
+                    addMessage('Game regenerated successfully!', 'ai');
+                    
+                    // Hide loading overlay
+                    loadingOverlay.classList.add('hidden');
+                    
+                    // Switch back to preview tab after a short delay
+                    setTimeout(() => {
+                        tabButtons.forEach(btn => {
+                            if (btn.getAttribute('data-target') === 'preview') {
+                                btn.click();
+                            }
+                        });
+                        
+                        // Refresh game iframe
+                        gameFrame.src = gameFrame.src;
+                    }, 2000);
+                })
+                .catch(error => {
+                    // Clear interval
+                    clearInterval(simulation);
+                    
+                    // Hide loading overlay
+                    loadingOverlay.classList.add('hidden');
+                    
+                    // Add error code log
+                    addCodeLog('❌ Error during game regeneration', error.toString());
+                    
+                    // Add error message
+                    addMessage('Error regenerating game. Please try again.', 'ai');
+                    console.error('Error:', error);
+                });
+            });
+            
+            // Send message when Send button is clicked
+            sendBtn.addEventListener('click', sendMessage);
+            
+            // Send message when Enter key is pressed (Shift+Enter for new line)
+            userInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+            
+            // For testing, show the code generation tab initially
+            if (window.location.hash === '#code') {
+                tabButtons.forEach(btn => {
+                    if (btn.getAttribute('data-target') === 'code') {
+                        btn.click();
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
