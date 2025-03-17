@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Play {{ project_name }} - Three.js Game</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/tailwind.css') }}" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
     <style>
@@ -67,14 +68,15 @@
         
         .overlay {
             position: absolute;
-            top: 0;
-            left: 0;
+            top: 10px;
+            right: 10px;
             padding: 10px;
             background-color: rgba(0, 0, 0, 0.5);
             color: white;
             z-index: 2;
             display: flex;
             gap: 10px;
+            border-radius: 5px;
         }
         
         .controls {
@@ -138,29 +140,28 @@
         }
         
         #generation-log {
-            width: 95%;
-            height: 75%;
+            font-family: 'Consolas', 'Monaco', monospace;
+            white-space: pre-wrap;
+            line-height: 1.4;
+            padding: 15px;
+            color: #33ff33; /* Terminal green */
             background-color: #1e1e1e;
             border-radius: 5px;
-            padding: 15px;
             overflow-y: auto;
-            font-family: monospace;
+            height: 75%;
+            width: 95%;
             margin-top: 20px;
-            white-space: pre-wrap;
-            font-size: 14px;
-            color: #33ff33;
-            line-height: 1.4;
-            box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
         }
         
-        /* Code block styling within the generation log */
+        /* Code block styling */
         .code-block {
             background-color: #252525;
-            border-radius: 4px;
-            padding: 10px;
+            border-left: 3px solid #33ff33;
+            padding: 8px;
             margin: 8px 0;
-            font-family: 'Consolas', 'Monaco', monospace;
-            border-left: 3px solid #4CAF50;
+            border-radius: 0 4px 4px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
             overflow-x: auto;
         }
         
@@ -168,13 +169,61 @@
             display: block;
             margin: 3px 0;
         }
+        
+        /* Modal styling */
+        .modal-content.bg-dark {
+            background-color: #2a2a2a !important;
+            border: 1px solid #444;
+        }
+        
+        .modal-header {
+            border-bottom: 1px solid #444;
+        }
+        
+        .modal-footer {
+            border-top: 1px solid #444;
+        }
+        
+        #user-response {
+            background-color: #333 !important;
+            color: #ddd !important;
+            border: 1px solid #555;
+        }
+        
+        #user-response:focus {
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+            border-color: #0d6efd;
+        }
+        
+        .btn-close-white {
+            filter: invert(1) grayscale(100%) brightness(200%);
+        }
+        
+        /* Add this CSS to completely hide the response modal */
+        #responseModal {
+            display: none !important;
+        }
+        .modal-backdrop {
+            display: none !important;
+        }
+        
+        /* Add this to your existing <style> tag */
+        .btn-primary {
+            background-color: #581c87 !important;
+            border-color: #4c1d95 !important;
+        }
+        
+        .btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+            background-color: #4c1d95 !important;
+            border-color: #3b0764 !important;
+        }
     </style>
 </head>
 <body>
     <div id="game-container"></div>
     
     <div id="chat-container">
-        <div class="p-3 bg-primary text-white">
+        <div class="p-3 text-white" style="background-color: #581c87;">
             <h5 class="m-0">Game Chat</h5>
             <small>Modify your game through natural language</small>
         </div>
@@ -193,8 +242,9 @@
     
     <div class="overlay">
         <a href="/" class="btn btn-sm btn-outline-light">Home</a>
-        <a href="/project/{{ project_name }}" class="btn btn-sm btn-outline-light">View Code</a>
-        <span class="ms-3 badge bg-success">{{ project_name }}</span>
+        <!-- <a href="/project/{{ project_name }}" class="btn btn-sm btn-outline-light">View Code</a> -->
+        <span class="ms-3 badge ">{{ project_name }}</span>
+        <button id="force-load-btn" class="btn btn-sm btn-warning ms-2">Force Load Game</button>
     </div>
     
     <div class="controls" id="controls">
@@ -211,6 +261,32 @@
             > Initializing Engine Arcade...
         </div>
     </div>
+
+    <!-- Replace the existing modal HTML with this simplified version -->
+    <div class="modal fade" id="responseModal" tabindex="-1" aria-labelledby="responseModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-light">
+          <div class="modal-header">
+            <h5 class="modal-title" id="responseModalLabel">GPT Engineer Prompt</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p id="modal-prompt">GPT-Engineer is asking for your input:</p>
+            <div class="d-grid gap-2 mt-3">
+              <button type="button" class="btn btn-success" id="respond-yes">Yes (Y)</button>
+              <button type="button" class="btn btn-danger" id="respond-no">No (N)</button>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <small class="text-muted me-auto">Simple Y/N responses work best with GPT Engineer</small>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Make sure Bootstrap JS is included -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 
     <!-- Script to handle game loading, chat interactions and code streaming -->
     <script>
@@ -235,194 +311,212 @@
         let gameLoadingTimeout = null;
         
         // Function to load the game via iframe
-        async function loadGameInIframe() {
-            // Prevent multiple loads
-            if (iframeLoaded) {
-                console.log('Iframe already loaded, skipping redundant load');
-                return true;
+        function loadGameInIframe() {
+            console.log("Loading game in iframe");
+            const projectName = "{{ project_name }}";
+            const codeOverlay = document.getElementById('code-generation-overlay');
+            const gameContainer = document.getElementById('game-container');
+            
+            // IMPORTANT: Immediately hide the code generation overlay
+            if (codeOverlay) {
+                codeOverlay.style.display = 'none';
             }
             
-            // Track attempt
-            iframeLoadAttempts++;
-            console.log(`Load attempt ${iframeLoadAttempts}/${MAX_LOAD_ATTEMPTS}`);
-            
-            // Stop if we've tried too many times
-            if (iframeLoadAttempts > MAX_LOAD_ATTEMPTS) {
-                console.error('Exceeded maximum load attempts');
-                gameContainer.innerHTML = `
-                    <div class="alert alert-danger" role="alert">
-                        <h4 class="alert-heading">Failed to Load Game</h4>
-                        <p>Multiple attempts to load the game have failed.</p>
-                        <hr>
-                        <p class="mb-0">Please try refreshing the page manually.</p>
-                    </div>
-                `;
-                return false;
-            }
-            
-            try {
-                // First trigger an emergency file copy to ensure files are available
-                console.log('Triggering emergency file copy before loading game...');
-                try {
-                    const copyResponse = await fetch(`/copy_files_to_static/${projectName}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            force: true
-                        })
-                    });
-                    const copyResult = await copyResponse.json();
-                    console.log('Emergency file copy result:', copyResult);
-                    
-                    // Add a small delay to ensure files are fully copied
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                } catch (error) {
-                    console.warn('Error during emergency file copy:', error);
-                    // Continue anyway - files might already be there
+            // Clear any existing content
+            if (gameContainer) {
+                // Save a reference to any existing loading message
+                const loadingDiv = gameContainer.querySelector('.loading-indicator');
+                
+                // Clear the container but preserve loading indicator if it exists
+                if (loadingDiv) {
+                    gameContainer.innerHTML = '';
+                    gameContainer.appendChild(loadingDiv);
+                } else {
+                    // Add a loading indicator
+                    const newLoadingDiv = document.createElement('div');
+                    newLoadingDiv.className = 'loading-indicator';
+                    newLoadingDiv.style.position = 'absolute';
+                    newLoadingDiv.style.top = '50%';
+                    newLoadingDiv.style.left = '50%';
+                    newLoadingDiv.style.transform = 'translate(-50%, -50%)';
+                    newLoadingDiv.style.zIndex = '5';
+                    newLoadingDiv.innerHTML = '<div class="spinner-border text-light" role="status"></div><p class="text-light mt-2">Loading game...</p>';
+                    gameContainer.innerHTML = '';
+                    gameContainer.appendChild(newLoadingDiv);
                 }
                 
-                // Add cache busting parameter
-                const cacheBuster = `?t=${Date.now()}`;
-                
-                // Use the static path instead of project_assets to fix the black screen issue
-                console.log(`Attempting to load game from /static/project_assets/${projectName}/index.html${cacheBuster}`);
-                
-                // Check if index.html exists with cache busting
-                const indexResponse = await fetch(`/static/project_assets/${projectName}/index.html${cacheBuster}`, {
-                    method: 'GET',
-                    cache: 'no-store',
-                    headers: {
-                        'Cache-Control': 'no-cache'
-                    }
-                });
-                
-                if (indexResponse.ok) {
-                    console.log(`index.html found (status: ${indexResponse.status}), creating iframe`);
-                    
-                    // Create a loading indicator
-                    gameContainer.innerHTML = `
-                        <div class="loading-indicator" style="text-align:center; padding: 20px;">
-                            <h4>Loading Game...</h4>
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                        </div>
-                    `;
-                    
-                    // Create an iframe for the game
-                    const iframe = document.createElement('iframe');
-                    iframe.style.width = '100%';
-                    iframe.style.height = '100%';
-                    iframe.style.border = 'none';
-                    // Add a cache-busting parameter to ensure we load the latest version
-                    // Use static/project_assets path to fix the black screen issue
-                    iframe.src = `/static/project_assets/${projectName}/index.html${cacheBuster}`;
-                    iframe.allow = 'fullscreen';
-                    iframe.id = 'game-iframe';
-                    iframe.setAttribute('tabindex', '0');
-                    
-                    // Create a promise to track loading status
-                    const loadPromise = new Promise((resolve) => {
-                        // Add error handling for iframe loading
-                        iframe.onerror = function(err) {
-                            console.error('Iframe loading error:', err);
-                            resolve(false);
+                // Find the best file to load - try multiple paths
+                fetch(`/locate_game_files/${projectName}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log("Located game files:", data);
+                        let gamePath = '';
+                        
+                        // Try to find the best HTML file from the response
+                        if (data.files && data.files.length > 0) {
+                            // 1. First try index.html
+                            const indexFile = data.files.find(f => f.toLowerCase().includes('/index.html'));
+                            if (indexFile) {
+                                gamePath = indexFile;
+                            } else {
+                                // 2. Try any HTML file
+                                gamePath = data.files[0];
+                            }
+                        }
+                        
+                        // If no file found, use default path
+                        if (!gamePath) {
+                            gamePath = `/static/project_assets/${projectName}/index.html`;
+                        }
+                        
+                        console.log("Loading game from path:", gamePath);
+                        
+                        // Create the iframe
+                        const iframe = document.createElement('iframe');
+                        iframe.id = "game-iframe";
+                        iframe.style.width = '100%';
+                        iframe.style.height = '100%';
+                        iframe.style.border = 'none';
+                        iframe.style.zIndex = '1';
+                        
+                        // Set a timeout to handle if the iframe doesn't load
+                        const iframeLoadTimeout = setTimeout(() => {
+                            // Try an alternative path if iframe fails to load
+                            tryAlternativePaths();
+                        }, 5000);
+                        
+                        // Add load event handler
+                        iframe.onload = function() {
+                            console.log("Game iframe loaded successfully!");
+                            clearTimeout(iframeLoadTimeout);
+                            
+                            // Remove loading indicator
+                            const loadingDiv = gameContainer.querySelector('.loading-indicator');
+                            if (loadingDiv) {
+                                gameContainer.removeChild(loadingDiv);
+                            }
+                            
+                            addChatMessage("Game loaded successfully! You can now interact with it.", "system");
                         };
                         
-                        // Auto-focus the iframe when loaded to ensure keyboard controls work
-                        iframe.onload = function() {
-                            console.log('iframe loaded successfully');
-                            // Mark as loaded to prevent reload loops
-                            iframeLoaded = true;
-                            
-                            // Hide the overlay when game is loaded
-                            const overlay = document.getElementById('code-generation-overlay');
-                            if (overlay) {
-                                overlay.style.display = 'none';
-                            }
-                            
-                            // Clear the container and add the iframe (replace the spinner)
-                            gameContainer.innerHTML = '';
-                            gameContainer.appendChild(iframe);
-                            
-                            iframe.focus();
-                            // Add click handler to refocus iframe if user clicks elsewhere
-                            document.addEventListener('click', function(e) {
-                                if (e.target !== iframe) {
-                                    setTimeout(() => iframe.focus(), 100);
-                                }
-                            });
-                            
-                            controlsElement.innerHTML = `
-                                <div class="p-2">
-                                    <h5>Game Controls:</h5>
-                                    <div class="d-flex justify-content-around">
-                                        <div>
-                                            <strong>Movement</strong>
-                                            <p>WASD or Arrow Keys</p>
-                                        </div>
-                                        <div>
-                                            <strong>Camera</strong>
-                                            <p>Click + Drag</p>
-                                        </div>
-                                        <div>
-                                            <strong>Shoot</strong>
-                                            <p>Spacebar</p>
-                                        </div>
-                                    </div>
-                                    <p class="mt-2 text-warning">Click on the game to activate controls</p>
-                                </div>
-                            `;
-                            
-                            resolve(true);
+                        // Add error handler
+                        iframe.onerror = function() {
+                            console.error("Game iframe failed to load from:", gamePath);
+                            clearTimeout(iframeLoadTimeout);
+                            tryAlternativePaths();
                         };
+                        
+                        // Set the source and append iframe
+                        iframe.src = gamePath;
+                        gameContainer.appendChild(iframe);
+                        
+                        // Add game controls
+                        addGameControls();
+                    })
+                    .catch(error => {
+                        console.error("Error loading game:", error);
+                        tryAlternativePaths();
                     });
-                    
-                    // Set a timeout in case the iframe never loads or errors
-                    const timeoutPromise = new Promise((resolve) => {
-                        setTimeout(() => {
-                            console.warn('Iframe load timed out, proceeding anyway');
-                            // Add the iframe to the container even if it timed out
-                            if (!iframeLoaded) { // Only replace if not already loaded
+            }
+            
+            function addGameControls() {
+                // Add reload game button
+                const reloadBtn = document.createElement('button');
+                reloadBtn.className = 'btn btn-sm btn-primary position-absolute';
+                reloadBtn.style.top = '50px'; // Position below the header
+                reloadBtn.style.right = '10px';
+                reloadBtn.style.zIndex = '5';
+                reloadBtn.innerHTML = 'Reload Game';
+                reloadBtn.onclick = function() {
+                    const iframe = document.getElementById('game-iframe');
+                    if (iframe) {
+                        iframe.src = iframe.src + '?t=' + new Date().getTime();
+                    } else {
+                        loadGameInIframe(); // Reload completely if iframe doesn't exist
+                    }
+                };
+                gameContainer.appendChild(reloadBtn);
+            }
+            
+            function tryAlternativePaths() {
+                // Try other possible file paths
+                const paths = [
+                    `/static/project_assets/${projectName}/index.html`,
+                    `/static/project_assets/${projectName}/game.html`,
+                    `/play_raw/${projectName}/index.html`,
+                    `/play_raw/${projectName}/game.html`
+                ];
+                
+                // Remove loading indicator
+                const loadingDiv = gameContainer.querySelector('.loading-indicator');
+                if (loadingDiv) {
+                    gameContainer.removeChild(loadingDiv);
+                }
+                
+                // Try each path
+                let pathsLoaded = false;
+                
+                for (let i = 0; i < paths.length; i++) {
+                    fetch(paths[i], { method: 'HEAD' })
+                        .then(response => {
+                            if (response.ok && !pathsLoaded) {
+                                pathsLoaded = true;
+                                console.log("Found alternative path:", paths[i]);
+                                
+                                // Create and load iframe with this path
+                                const iframe = document.createElement('iframe');
+                                iframe.id = "game-iframe";
+                                iframe.style.width = '100%';
+                                iframe.style.height = '100%';
+                                iframe.style.border = 'none';
+                                iframe.src = paths[i];
+                                
+                                // Clear container and add iframe
                                 gameContainer.innerHTML = '';
                                 gameContainer.appendChild(iframe);
-                                iframeLoaded = true; // Mark as loaded to prevent loops
-                                resolve(true);
-                            } else {
-                                resolve(true);
+                                
+                                // Add game controls
+                                addGameControls();
                             }
-                        }, 8000); // 8 second timeout
-                    });
-                    
-                    // Return the first promise that resolves (either load or timeout)
-                    return Promise.race([loadPromise, timeoutPromise]);
-                    
-                } else {
-                    console.warn(`index.html not found, status: ${indexResponse.status}`);
-                    gameContainer.innerHTML = `
-                        <div class="alert alert-warning" role="alert">
-                            <h4 class="alert-heading">Game Not Found</h4>
-                            <p>Could not load the game. The index.html file was not found (Status: ${indexResponse.status}).</p>
-                            <hr>
-                            <p class="mb-0">Try refreshing the page or check if the game was generated correctly.</p>
-                        </div>
-                    `;
-                    return false;
+                        })
+                        .catch(() => {
+                            // Path failed, will try next one
+                        });
                 }
-            } catch (error) {
-                console.error("Error loading game:", error);
-                gameContainer.innerHTML = `
-                    <div class="alert alert-danger" role="alert">
-                        <h4 class="alert-heading">Error Loading Game</h4>
-                        <p>An error occurred while trying to load the game: ${error.message || 'Unknown error'}</p>
-                        <hr>
-                        <p class="mb-0">Try refreshing the page or create a new game.</p>
-                    </div>
-                `;
-                return false;
+                
+                // If all paths fail, show error
+                setTimeout(() => {
+                    if (!pathsLoaded) {
+                        gameContainer.innerHTML = `
+                            <div class="tw-bg-red-100 tw-border tw-border-red-400 tw-text-red-700 tw-px-4 tw-py-3 tw-rounded tw-my-3 position-absolute" style="top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: 80%;">
+                                <h4 class="tw-font-bold">Game Failed to Load</h4>
+                                <p class="tw-mt-2">The generated game couldn't be loaded. It might not have been generated properly.</p>
+                                <button class="tw-bg-blue-500 tw-hover:bg-blue-700 tw-text-white tw-font-bold tw-py-2 tw-px-4 tw-rounded tw-mt-3" 
+                                        onclick="window.location.reload()">
+                                    Refresh Page
+                                </button>
+                                <button class="tw-bg-green-500 tw-hover:bg-green-700 tw-text-white tw-font-bold tw-py-2 tw-px-4 tw-rounded tw-mt-3 ms-2" 
+                                        onclick="forceLoadGame()">
+                                    Force Load
+                                </button>
+                            </div>
+                        `;
+                    }
+                }, 2000);
             }
+        }
+        
+        // Add this helper function
+        function forceLoadGame() {
+            fetch(`/force_load_game/${encodeURIComponent("{{ project_name }}")}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Forced game loading:", data);
+                    loadGameInIframe();
+                })
+                .catch(error => {
+                    console.error("Error forcing game load:", error);
+                });
         }
         
         // Add a chat message to the chat window
@@ -630,94 +724,266 @@
         }
         
         // Function for real-time log streaming using Server-Sent Events
-        function setupLogStreaming(projectName) {
-            if (!projectName) return;
-            
-            // Close any existing EventSource connection
-            try {
-                if (window.logEventSource) {
-                    window.logEventSource.close();
-                    window.logEventSource = null;
+        function connectToStream() {
+            // Use the existing generation log element
+            const generationLog = document.getElementById('generation-log');
+            if (generationLog) {
+                // Keep any existing content and add our connection message
+                generationLog.innerHTML += '\n> Connecting to GPT Engineer stream...\n';
+                
+                const projectName = "{{ project_name }}";
+                const eventSource = new EventSource(`/stream_logs/${projectName}`);
+                
+                // Set a timeout to force game loading if the stream hangs
+                const loadGameTimeout = setTimeout(() => {
+                    console.log("Force loading game due to timeout");
+                    eventSource.close();
+                    loadGameInIframe();
+                }, 60000); // Force load after 60 seconds even if stream hasn't completed
+                
+                // Update progress bar
+                const progressBar = document.getElementById('generation-progress');
+                if (progressBar) {
+                    progressBar.style.width = '20%';
+                    const progressText = progressBar.parentNode.querySelector('.progress-text');
+                    if (progressText) {
+                        progressText.textContent = '20%';
+                    }
                 }
-            } catch (err) {
-                console.error('Error closing existing EventSource:', err);
+                
+                eventSource.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        
+                        if (data.content) {
+                            // Process the content for better display
+                            let formattedContent = data.content;
+                            
+                            // Replace plain newlines for better readability
+                            formattedContent = formattedContent.replace(/\n/g, '\n');
+                            
+                            // Add the content to the generation log
+                            generationLog.innerHTML += formattedContent;
+                            generationLog.scrollTop = generationLog.scrollHeight;
+                            
+                            // Auto-respond to any prompts - no modal shown
+                            if (formattedContent.includes("Do you want to execute") || 
+                                formattedContent.includes("Do you want to") || 
+                                formattedContent.includes("Would you like to") ||
+                                formattedContent.includes("Please provide") ||
+                                formattedContent.includes("(Y/n)") ||
+                                formattedContent.includes("(y/N)") ||
+                                formattedContent.includes("[y/n]")) {
+                                
+                                // Auto-respond with 'y' - no modal shown
+                                fetch(`/auto_respond_to_gpte/${projectName}`)
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        generationLog.innerHTML += '\n> [AUTO] Automatically responding "y" to prompt\n';
+                                        generationLog.scrollTop = generationLog.scrollHeight;
+                                    })
+                                    .catch(error => {
+                                        console.error("Error auto-responding:", error);
+                                    });
+                            }
+                            
+                            // Check for common completion indicators in the logs
+                            if (formattedContent.includes("Game generation complete") || 
+                                formattedContent.includes("Generation completed") ||
+                                formattedContent.includes("Running http-server") ||
+                                formattedContent.includes("npx http-server")) {
+                                
+                                console.log("Detected completion indicator in logs");
+                                clearTimeout(loadGameTimeout); // Clear the timeout
+                                
+                                // Small delay to ensure files are written
+                                setTimeout(() => {
+                                    eventSource.close();
+                                    loadGameInIframe();
+                                }, 3000);
+                            }
+                            
+                            // Update progress based on content
+                            if (formattedContent.includes('Analyzing')) {
+                                updateProgressTo(30, 'Analyzing requirements...');
+                            } else if (formattedContent.includes('Creating')) {
+                                updateProgressTo(50, 'Creating game files...');
+                            } else if (formattedContent.includes('Implementing')) {
+                                updateProgressTo(70, 'Implementing game logic...');
+                            } else if (formattedContent.includes('Testing')) {
+                                updateProgressTo(90, 'Testing game...');
+                            }
+                        }
+                        
+                        if (data.status === 'completed') {
+                            // Handle completion
+                            console.log("Stream reported completion");
+                            clearTimeout(loadGameTimeout); // Clear the timeout
+                            eventSource.close();
+                            generationLog.innerHTML += '\n✅ Game generation complete! Loading game...\n';
+                            
+                            // Update progress to 100%
+                            if (progressBar) {
+                                progressBar.style.width = '100%';
+                                const progressText = progressBar.parentNode.querySelector('.progress-text');
+                                if (progressText) {
+                                    progressText.textContent = '100%';
+                                }
+                            }
+                            
+                            // Load the game
+                            setTimeout(() => {
+                                loadGameInIframe();
+                            }, 2000);
+                        }
+                    } catch (e) {
+                        console.error('Error parsing SSE data:', e);
+                        generationLog.innerHTML += `\n> Error: ${e.message}\n`;
+                    }
+                };
+                
+                eventSource.onerror = function() {
+                    generationLog.innerHTML += '\n> Error connecting to stream or stream closed.\n';
+                    eventSource.close();
+                    // Try to load game anyway in case of error
+                    setTimeout(() => {
+                        loadGameInIframe();
+                    }, 2000);
+                };
+            }
+        }
+        
+        // Check if the game is still generating
+        fetch(`/check_status/${encodeURIComponent("{{ project_name }}")}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "generating") {
+                    // If still generating, connect to the stream
+                    console.log("Game is still generating, connecting to stream");
+                    connectToStream();
+                } else {
+                    console.log("Game generation status:", data.status);
+                }
+            })
+            .catch(error => {
+                console.error("Error checking game status:", error);
+            });
+
+        // Setup event listeners and initialize the game when the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get elements after DOM is loaded
+            const chatSubmit = document.getElementById('chat-submit');
+            const chatInput = document.getElementById('chat-input');
+            
+            // Event listeners - only add if elements exist
+            if (chatSubmit) {
+                chatSubmit.addEventListener('click', handleChatSubmit);
             }
             
-            // Create a new EventSource connection for Server-Sent Events
-            window.logEventSource = new EventSource(`/stream_logs/${projectName}`);
-            console.log(`Started streaming logs for ${projectName}`);
-            
-            // Add a message to the log that we're starting real-time streaming
-            const generationLog = document.getElementById('generation-log');
-            generationLog.innerHTML += '> Started real-time log streaming...\n';
-            
-            // Update progress bar to show we're starting
-            updateProgressTo(10, 'Initializing game generation...');
-            
-            // Listen for messages from the server
-            window.logEventSource.onmessage = function(event) {
-                try {
-                    const data = JSON.parse(event.data);
-                    console.log('Received log update:', data);
-                    
-                    if (data.status === 'running' && data.content) {
-                        // Parse the content and add it to the log display
-                        // Replace escaped newlines with actual newlines for display
-                        const formattedContent = data.content.replace(/\\n/g, '\n');
-                        
-                        // Add the new content to the log
-                        generationLog.innerHTML += formattedContent;
-                        
-                        // Auto-scroll to bottom
-                        generationLog.scrollTop = generationLog.scrollHeight;
-                        
-                        // Update progress based on content
-                        updateGenerationProgress(formattedContent);
+            if (chatInput) {
+                chatInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        handleChatSubmit();
                     }
-                    else if (data.status === 'completed') {
-                        // Generation is complete
-                        console.log('Generation completed!');
-                        generationLog.innerHTML += '> Generation completed!\n> Loading the game...\n';
-                        updateProgressTo(100, 'Game generation complete!');
-                        
-                        // Close the event source
-                        window.logEventSource.close();
-                        
-                        // Load the game
-                        loadGameInIframe();
-                    }
-                    else if (data.status === 'error') {
-                        console.error('Error in log streaming:', data.message);
-                        generationLog.innerHTML += `> Error: ${data.message}\n`;
-                    }
-                } catch (error) {
-                    console.error('Error parsing event data:', error, event.data);
-                }
-            };
+                });
+            }
             
-            // Handle connection open
-            window.logEventSource.onopen = function() {
-                console.log('Log streaming connection established');
-                generationLog.innerHTML += '> Log streaming connection established\n';
-            };
+            // Start game initialization when the page loads
+            window.addEventListener('load', function() {
+                console.log('Window loaded, initializing game in 1 second...');
+                // Short delay to ensure DOM is fully loaded
+                setTimeout(initGame, 1000);
+            });
+        });
+
+        // Main initialization function
+        function initGame() {
+            console.log('Starting game initialization for project:', projectName);
             
-            // Handle errors
-            window.logEventSource.onerror = function(error) {
-                console.error('Error with log streaming:', error);
-                generationLog.innerHTML += '> Error with log streaming connection\n';
-                // Try to reconnect after a delay
-                setTimeout(() => {
-                    try {
-                        if (window.logEventSource) {
-                            window.logEventSource.close();
-                            window.logEventSource = null;
+            // Show the overlay during initialization
+            codeOverlay.style.display = 'flex';
+            addChatMessage('Creating your new game. Please wait...', 'system');
+            
+            // Check if we have URL parameters for a new game
+            const urlParams = new URLSearchParams(window.location.search);
+            const isNew = urlParams.get('new') === 'true';
+            const prompt = urlParams.get('prompt');
+            
+            console.log('URL parameters:', { isNew, prompt });
+            
+            // Check if the game is still generating and connect to the stream
+            fetch(`/check_status/${encodeURIComponent(projectName)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === "generating") {
+                        // If still generating, connect to the stream immediately
+                        console.log("Game is still generating, connecting to stream");
+                        connectToStream();
+                    } else {
+                        console.log("Game generation status:", data.status);
+                        
+                        // If it's a new game with a prompt or we need to trigger generation
+                        if (isNew && prompt) {
+                            // Start with default text
+                            generationLog.innerHTML = '> Initializing Engine Arcade...\n> Processing your game description: "' + prompt + '"\n> Starting code generation process...\n';
+                            
+                            // Prepare form data for the API call
+                            const formData = new FormData();
+                            formData.append('project_name', projectName);
+                            formData.append('prompt', prompt);
+                            
+                            // Trigger GPT-Engineer process
+                            fetch('/run_gpte', {
+                                method: 'POST',
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                },
+                                body: formData
+                            })
+                            .then(response => response.json())
+                            .then(() => {
+                                // Connect to the stream after triggering GPT Engineer
+                                connectToStream();
+                            })
+                            .catch(error => {
+                                console.error('Error triggering GPT-Engineer:', error);
+                                generationLog.innerHTML += '> Error starting generation process. Please try again.\n';
+                            });
+                        } else if (data.status === "completed") {
+                            // Game is already generated, load it
+                            loadGameInIframe();
                         }
-                    } catch (err) {
-                        console.error('Error closing EventSource during reconnect:', err);
                     }
-                    setupLogStreaming(projectName);
-                }, 5000);
-            };
+                })
+                .catch(error => {
+                    console.error("Error checking game status:", error);
+                    // Fallback to basic screen
+                    generationLog.innerHTML = '> Error checking game status. Please try refreshing the page.\n';
+                });
+            
+            // Add a fallback timer to force game loading if it takes too long
+            setTimeout(() => {
+                console.log("Checking if game needs to be force loaded");
+                fetch(`/check_status/${encodeURIComponent(projectName)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === "generating" || data.status === "pending") {
+                            console.log("Game still generating after timeout, forcing completion");
+                            fetch(`/force_load_game/${encodeURIComponent(projectName)}`)
+                                .then(response => response.json())
+                                .then(data => {
+                                    console.log("Forced game loading:", data);
+                                    loadGameInIframe();
+                                })
+                                .catch(error => {
+                                    console.error("Error forcing game load:", error);
+                                });
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Error checking game status for force load:", error);
+                    });
+            }, 90000); // 90 seconds timeout
         }
         
         // Helper to update progress based on log content
@@ -761,669 +1027,18 @@
                 }
             }
         }
-        
-        // Main initialization function
-        function initGame() {
-            console.log('Starting game initialization for project:', projectName);
-            
-            // Show the overlay during initialization
-            codeOverlay.style.display = 'flex';
-            addChatMessage('Creating your new game. Please wait...', 'system');
-            
-            // Set up initial progress information
-            generationLog.innerHTML = '> Initializing Engine Arcade...\n> Preparing to generate your Three.js game\n> Starting code generation process...\n';
-            
-            // Configure progress bar
-            const progressBar = document.getElementById('generation-progress');
-            progressBar.style.width = '10%';
-            
-            // Add progress text if not present
-            let progressText = document.querySelector('.progress-text');
-            if (!progressText) {
-                progressText = document.createElement('span');
-                progressText.className = 'progress-text';
-                progressText.textContent = '10%';
-                progressBar.parentNode.appendChild(progressText);
-            }
-            
-            // Check if we have URL parameters for a new game
-            const urlParams = new URLSearchParams(window.location.search);
-            const isNew = urlParams.get('new') === 'true';
-            const prompt = urlParams.get('prompt');
-            
-            console.log('URL parameters:', { isNew, prompt });
-            
-            // Prepare form data for the API call
-            const formData = new FormData();
-            formData.append('project_name', projectName);
-            
-            if (isNew && prompt) {
-                // This is a new game with a prompt - we should generate it
-                formData.append('prompt', prompt);
-                console.log('New game with prompt, will trigger generation:', prompt);
-                generationLog.innerHTML += '> Detected new game with prompt:\n';
-                generationLog.innerHTML += '> "' + prompt + '"\n';
-                generationLog.innerHTML += '> Will trigger generation process with this prompt\n';
-                
-                // Show the prompt visibly on the page
-                const statusElement = document.getElementById('generation-status');
-                if (statusElement) {
-                    statusElement.innerHTML = 'Generating game based on prompt: "' + prompt + '"';
-                }
-            }
-            
-            // First check if the game already exists
-            fetch('/check_game_exists/' + projectName)
-            .then(response => response.json())
-            .then(data => {
-                if (data.exists && data.has_files) {
-                    console.log('Game already exists with files, skipping GPT-Engineer process');
-                    generationLog.innerHTML += '> Game files already exist\n> Loading existing game...\n';
-                    updateProgressTo(100, 'Loading existing game...');
-                    loadGameInIframe();
-                    return;
-                }
-                
-                // Game doesn't exist or doesn't have files, trigger GPT-Engineer process
-                console.log('Game needs to be generated, triggering GPT-Engineer');
-                generationLog.innerHTML += '> Starting GPT-Engineer process to generate game...\n';
-                updateProgressTo(20, 'Starting GPT-Engineer process...');
-                
-                // First trigger the GPT-Engineer process
-                // Use a non-redirecting fetch call to ensure we stay on this page
-                return fetch('/run_gpte', {
-                    method: 'POST',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'  // Ensure it's treated as an AJAX request
-                    },
-                    body: formData
-                }).then(response => {
-                    // Set up real-time streaming of logs after triggering the process
-                    setupLogStreaming(projectName);
-                    return response;
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log('GPT-Engineer process triggered:', data);
-                generationLog.innerHTML += '> GPT-Engineer process started successfully\n> Beginning to generate game code...\n';
-                updateProgressTo(25, 'GPT-Engineer is now generating your game...');
-                
-                // We don't need polling intervals anymore since we're using real-time streaming
-                // Just do an initial check of game status
-                checkGameStatus();
-            })
-            .catch(error => {
-                // Handle errors
-                console.error('Error triggering GPT-Engineer process:', error);
-                generationLog.innerHTML += '> Error starting GPT-Engineer process: ' + (error.message || 'Unknown error') + '\n> Falling back to status checking...\n';
-                
-                // Still set up polling even if the initial request failed
-                window.logCheckInterval = setInterval(updateLog, 2000);
-                window.gameCheckInterval = setInterval(checkGameStatus, 5000);
-                checkGameStatus();
-                updateLog();
-            });
-        }
-        
-        // Function to check for game files and load them - defined in global window scope for access everywhere
-        window.checkForFilesAndLoad = function(currentProgress) {
-            console.log(`Checking for game files to load with progress: ${currentProgress}`);
-            
-            // Ensure we have the progress elements
-            const progressBar = document.getElementById('generation-progress');
-            let progressText = document.querySelector('.progress-text');
-            
-            if (!progressText) {
-                progressText = document.createElement('span');
-                progressText.className = 'progress-text';
-                progressText.textContent = `${currentProgress || 0}%`;
-                progressBar.parentNode.appendChild(progressText);
-            }
-            
-            // Update progress bar with current progress
-            progressBar.style.width = `${currentProgress || progress}%`;
-            
-            // First check if index.html exists directly
-            fetch(`/project_assets/${projectName}/index.html?t=${Date.now()}`, {
-                method: 'HEAD',
-                cache: 'no-store'
-            })
-            .then(function(response) {
-                if (response.ok) {
-                    // Direct file access successful
-                    console.log('Found index.html file directly, loading game...');
-                    progressBar.style.width = '100%';
-                    progressText.textContent = '100%';
-                    iframeLoadAttempts = 0;
-                    return loadGameInIframe();
-                } 
-                else {
-                    // Fall back to checking status API
-                    return checkStatusAPI(currentProgress, progressBar, progressText);
-                }
-            })
-            .catch(function(error) {
-                console.error('Error checking file existence:', error.message || 'Unknown error');
-                setTimeout(function() {
-                    window.checkForFilesAndLoad(currentProgress);
-                }, 5000);
-            });
-        };
-        
-        // Helper function to check status API
-        function checkStatusAPI(currentProgress) {
-            const statusElement = document.getElementById('generation-status');
-            const generationLog = document.getElementById('generation-log');
-            
-            return fetch(`/check_status/${projectName}`, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'Cache-Control': 'no-cache'
-                },
-                cache: 'no-store'
-            })
-            .then(function(response) {
-                console.log(`Check status response status: ${response.status}`);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(function(data) {
-                console.log('File status response:', data);
-                
-                // Update progress based on status
-                let newProgress = currentProgress;
-                
-                if (data.status === 'completed') {
-                    // Game generation completed
-                    newProgress = 100;
-                    
-                    if (statusElement) {
-                        statusElement.innerHTML = 'Game generation completed! Loading game...';
-                    }
-                    
-                    // Update progress bar to 100%
-                    const progressBar = document.getElementById('generation-progress');
-                    if (progressBar) {
-                        progressBar.style.width = '100%';
-                        const progressText = progressBar.parentNode.querySelector('.progress-text');
-                        if (progressText) {
-                            progressText.textContent = '100%';
-                        }
-                    }
-                    
-                    console.log('Game files are ready, attempting to load game...');
-                    
-                    // Load the game in iframe
-                    loadGameInIframe().then(function(success) {
-                        if (success) {
-                            console.log('Game loaded successfully');
-                            if (statusElement) {
-                                statusElement.innerHTML = 'Game loaded successfully!';
-                            }
-                            setTimeout(function() {
-                                const overlay = document.getElementById('code-generation-overlay');
-                                if (overlay) {
-                                    overlay.style.display = 'none';
-                                }
-                            }, 2000);
-                        } else {
-                            console.error('Failed to load game');
-                            if (statusElement) {
-                                statusElement.innerHTML = 'Failed to load game. Please try refreshing the page.';
-                            }
-                        }
-                    });
-                    
-                    return Promise.resolve(true);
-                } else if (data.status === 'in_progress') {
-                    // Game is still being generated
-                    newProgress = Math.min(currentProgress + 5, 95);
-                    
-                    if (statusElement) {
-                        statusElement.innerHTML = 'Game is being generated... Please wait.';
-                    }
-                    
-                    setTimeout(function() {
-                        window.checkForFilesAndLoad(newProgress);
-                    }, 3000);
-                    
-                    return Promise.resolve(false);
-                } else {
-                    // Unknown or error status
-                    console.log('Game files not ready yet, status:', data.status);
-                    newProgress = Math.min(currentProgress + 2, 90); // Slower progress
-                    
-                    setTimeout(function() {
-                        window.checkForFilesAndLoad(newProgress);
-                    }, 3000);
-                    
-                    return Promise.resolve(false);
-                }
-            })
-            .catch(function(error) {
-                console.error('Error checking for game files:', error.message || 'Unknown error');
-                
-                if (generationLog) {
-                    generationLog.innerHTML += '<div class="error-message">Error checking game status. Retrying...</div>';
-                }
-                
-                setTimeout(function() {
-                    window.checkForFilesAndLoad(currentProgress);
-                }, 5000);
-                
-                return Promise.resolve(false);
-            });
-        }
-        
-        // Check if the game files are ready and load the game
-        function checkGameStatus() {
-            console.log('Checking game status for:', projectName);
-            
-            // Update progress bar animation
-            const progressBar = document.getElementById('generation-progress');
-            progress = Math.min(progress + 3, 95); // Slower progress increment
-            progressBar.style.width = `${progress}%`;
-            
-            let progressText = document.querySelector('.progress-text');
-            if (!progressText) {
-                progressText = document.createElement('span');
-                progressText.className = 'progress-text';
-                progressBar.parentNode.appendChild(progressText);
-            }
-            progressText.textContent = `${progress}%`;
-            
-            // Check if game files are ready via API
-            fetch(`/check_status/${projectName}`, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'Cache-Control': 'no-cache'
-                },
-                cache: 'no-store'
-            })
-            .then(function(response) {
-                return response.json();
-            })
-            .then(function(data) {
-                console.log('Game status response:', data);
-                
-                if (data.status === 'completed') {
-                    // Game is ready - stop polling and load the game
-                    if (typeof gameCheckInterval !== 'undefined') {
-                        clearInterval(gameCheckInterval);
-                    }
-                    if (typeof logCheckInterval !== 'undefined') {
-                        clearInterval(logCheckInterval);
-                    }
-                    
-                    // Update UI to show completion
-                    if (progressBar) {
-                        progressBar.style.width = '100%';
-                    }
-                    progressText.textContent = '100%';
-                    generationLog.innerHTML += '\n> Game generation complete!\n> Loading your game...\n';
-                    
-                    // Try to load the game
-                    setTimeout(function() {
-                        loadGameInIframe()
-                        .then(function(success) {
-                            if (success) {
-                                setTimeout(function() { 
-                                    codeOverlay.style.display = 'none'; 
-                                }, 1500);
-                            } else {
-                                generationLog.innerHTML += '\n> <span style="color:red">Error loading game. Please refresh the page.</span>\n';
-                            }
-                        })
-                        .catch(function(err) {
-                            console.error('Error loading game:', err);
-                            generationLog.innerHTML += `\n> <span style="color:red">Error: ${err.message || 'Failed to load game'}</span>\n`;
-                        });
-                    }, 1000);
-                }
-            })
-            .catch(function(error) {
-                console.error('Error checking status:', error);
-                // If progress is high enough, try checking for files directly
-                if (progress > 70) tryDirectFileCheck();
-            });
-        }
-        
-        // Fallback method to check for game files directly
-        function tryDirectFileCheck() {
-            console.log('Trying direct file check for:', projectName);
-            
-            fetch(`/project_assets/${projectName}/index.html`, {
-                method: 'HEAD',
-                cache: 'no-store'
-            })
-            .then(response => {
-                if (response.ok) {
-                    console.log('Found game files via direct check');
-                    generationLog.innerHTML += '\n> Found game files. Loading your game...\n';
-                    
-                    // Stop all polling
-                    clearInterval(gameCheckInterval);
-                    clearInterval(logCheckInterval);
-                    
-                    // Update progress to 100%
-                    const progressBar = document.getElementById('generation-progress');
-                    progressBar.style.width = '100%';
-                    const progressText = document.querySelector('.progress-text');
-                    if (progressText) progressText.textContent = '100%';
-                    
-                    // Load the game
-                    setTimeout(() => {
-                        loadGameInIframe()
-                        .then(success => {
-                            if (success) {
-                                setTimeout(() => codeOverlay.style.display = 'none', 1500);
-                            }
-                        });
-                    }, 1000);
-                }
-            })
-            .catch(error => {
-                console.error('Error in direct file check:', error);
-            });
-        }
-        
-        // Update the log display with latest content
-        function updateLog() {
-            fetch(`/read_log/${projectName}`, {
-                method: 'GET',
-                cache: 'no-store'
-            })
-            .then(response => response.text())
-            .then(data => {
-                if (data && data.length > 0 && data !== logContent) {
-                    console.log('New log content available');
-                    logContent = data;
-                    
-                    // Format code blocks with syntax highlighting
-                    let formatted = formatLogWithSyntaxHighlighting(data);
-                    
-                    // Update the log display and scroll to bottom
-                    generationLog.innerHTML = formatted;
-                    generationLog.scrollTop = generationLog.scrollHeight;
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching log:', error);
-            });
-        }
-        
-        // Format log content with syntax highlighting
-        function formatLogWithSyntaxHighlighting(content) {
-            if (!content) return '';
-            
-            // Handle markdown code blocks
-            let formatted = content.replace(/```(?:javascript|js)\s*([\s\S]*?)```/g, 
-                '<div class="code-block">$1</div>');
-                
-            // Handle code blocks with no language specified
-            formatted = formatted.replace(/```([\s\S]*?)```/g, 
-                '<div class="code-block">$1</div>');
-            
-            // Highlight JavaScript keywords
-            formatted = formatted.replace(/(function|const|let|var|return|if|else|for|while|class|import|export|new|this)\b/g, 
-                '<span style="color:#ff9966;">$1</span>');
-                
-            return formatted;
-        }
-            
-            // Function to process log content with syntax highlighting
-            function processLogContent(content) {
-                // Replace code blocks with syntax highlighting
-                let formatted = content.replace(/```(?:javascript|js)\s*([\s\S]*?)```/g, 
-                    '<pre class="code-block"><code class="language-javascript">$1</code></pre>');
-                    
-                // Also handle code blocks with no language specified
-                formatted = formatted.replace(/```([\s\S]*?)```/g, 
-                    '<pre class="code-block"><code>$1</code></pre>');
-                
-                // Handle non-code-block lines
-                formatted = formatted.replace(/^(?!<pre)(.*?)$/gm, '<span class="log-line">$1</span>');
-                
-                return formatted;
-            }
-            
-            // Ensure progress elements exist
-            const ensureProgressElements = () => {
-                // Make sure we have a progressText element
-                let progressText = document.querySelector('.progress-text');
-                if (!progressText) {
-                    progressText = document.createElement('span');
-                    progressText.className = 'progress-text';
-                    progressText.textContent = `${progress}%`;
-                    progressBar.parentNode.appendChild(progressText);
-                }
-                return { progressBar, progressText };
-            };
-            
-            // Separate polling function for log updates
-            const pollLog = () => {
-                console.log(`Polling log for project: ${projectName}`);
-                const { progressBar, progressText } = ensureProgressElements();
-                fetch(`/read_log/${projectName}`, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'text/plain',
-                        'Cache-Control': 'no-cache'
-                    },
-                    cache: 'no-store'
-                })
-                .then(response => {
-                    console.log(`Log polling response status: ${response.status}`);
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}`);
-                    }
-                    return response.text();
-                })
+
+        // Add this to event listeners
+        document.getElementById('force-load-btn').addEventListener('click', function() {
+            fetch(`/force_load_game/${encodeURIComponent("{{ project_name }}")}`)
+                .then(response => response.json())
                 .then(data => {
-                    if (data) {
-                        // Always update the content to avoid stale data issues
-                        logContent = data;
-                        let formattedContent = processLogContent(data);
-                        generationLog.innerHTML = formattedContent;
-                        generationLog.scrollTop = generationLog.scrollHeight;
-                        
-                        // Update progress when new content is available
-                        progress = Math.min(90, progress + 3);
-                        progressBar.style.width = `${progress}%`;
-                        progressText.textContent = `${progress}%`;
-                        
-                        // Check if the log contains completion markers
-                        if (data.includes('✅ Game generation complete!') || 
-                            data.includes('Process completed at')) {
-                            console.log('Generation complete detected in logs');
-                            // Try to load the game
-                            window.checkForFilesAndLoad(progress);
-                        }
-                    }
-                    // Continue polling even if the data didn't change
-                    setTimeout(pollLog, 2000); // Poll every 2 seconds
+                    console.log("Forced game loading:", data);
+                    loadGameInIframe();
                 })
                 .catch(error => {
-                    console.error('Error polling log:', error.message || 'Unknown error');
-                    // Add a message to the log display to show something is wrong
-                    generationLog.innerHTML += '<div class="error-message">Error loading log updates. Retrying...</div>';
-                    // Retry after a longer delay
-                    setTimeout(pollLog, 5000);
+                    console.error("Error forcing game load:", error);
                 });
-            };
-            
-            // Define the file checking function first
-            const checkForFiles = () => {
-                console.log('Checking file completion status for:', projectName);
-                fetch(`/check_status/${projectName}`, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Cache-Control': 'no-cache'
-                    },
-                    cache: 'no-store'
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status === 'completed') {
-                            // Game files are ready
-                            progressBar.style.width = '100%';
-                            addChatMessage('Game has been created! Loading game...', 'system');
-                            
-                            console.log('Game files are ready, loading game...');
-                            // Add a final message to the generation log
-                            generationLog.innerHTML += '<div class="log-line success-message">✅ Game generation complete! Loading game...</div>';
-                            
-                            // First try to load the game using the global function
-                            loadGameInIframe().then(success => {
-                                if (success) {
-                                    // Only hide overlay after successfully loading the game and a brief delay
-                                    setTimeout(() => {
-                                        codeOverlay.style.display = 'none';
-                                    }, 3000); // Give user time to see the completion message
-                                } else {
-                                    // If loading failed, keep the log visible and add an error message
-                                    generationLog.innerHTML += '<div class="log-line error-message">❌ Error loading game. You can still view the generated code.</div>';
-                                }
-                            });
-                        } else if (data.status === 'generating') {
-                            // Still generating
-                            if (data.log) {
-                                // Update the log content with syntax highlighting for code blocks
-                                const logContent = data.log;
-                                
-                                // Only update if there's new content
-                                if (logContent.length > lastLogLength) {
-                                    // Process the log to better highlight code sections
-                                    let processedLog = logContent;
-                                    
-                                    // Look for code blocks and add special styling - more robust approach
-                                    processedLog = processedLog.replace(/(```(?:javascript|js|html|css)?[\r\n]?)([\s\S]*?)(```)/g, (match, start, code, end) => {
-                                        // Create a sanitized version of the code without the markdown markers
-                                        return `<div class="code-block">${code}</div>`;
-                                    });
-                                    
-                                    // If any triple backticks remain, handle them safely
-                                    processedLog = processedLog.replace(/```/g, '<code>```</code>');
-                                    
-                                    // Highlight file paths
-                                    processedLog = processedLog.replace(/([\/\\\w\-\.]+\.(js|html|css))/g, '<span style="color:#ffcc00;">$1</span>');
-                                    
-                                    // Add some color to functions and keywords
-                                    processedLog = processedLog.replace(/(function|const|let|var|return|if|else|for|while)\b/g, '<span style="color:#ff9966;">$1</span>');
-                                    
-                                    generationLog.innerHTML = processedLog;
-                                    generationLog.scrollTop = generationLog.scrollHeight;
-                                    
-                                    // Console output as well for debugging
-                                    console.log("New code generated:", data.log.substring(lastLogLength));
-                                    
-                                    lastLogLength = logContent.length;
-                                }
-                            }
-                            
-                            // Update progress with some randomness to appear more natural
-                            const progressIncrement = Math.random() * 3 + 0.5;
-                            progress = Math.min(progress + progressIncrement, 95);
-                            progressBar.style.width = `${progress}%`;
-                            
-                            // Check again after a short delay
-                            setTimeout(checkForFiles, 1000);
-                        } else {
-                            // Error state
-                            addChatMessage(`Error creating game: ${data.message || 'Unknown error'}`, 'system');
-                            
-                            // Try loading anyway after a delay
-                            setTimeout(() => {
-                                codeOverlay.style.display = 'none';
-                                loadGameInIframe();
-                            }, 5000);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error checking project status:', error);
-                        // Check again after a delay
-                        setTimeout(checkForFiles, 3000);
-                    });
-            };
-            
-            // Add CSS for code blocks
-            const style = document.createElement('style');
-            style.textContent = `
-                .code-block {
-                    background-color: #252525;
-                    border-left: 3px solid #33ff33;
-                    padding: 8px;
-                    margin: 10px 0;
-                    border-radius: 0 4px 4px 0;
-                    font-family: monospace;
-                    white-space: pre-wrap;
-                    overflow-x: auto;
-                }
-                
-                .success-message {
-                    color: #33ff33;
-                    font-weight: bold;
-                    font-size: 1.1em;
-                    padding: 10px;
-                    background-color: rgba(0, 0, 0, 0.2);
-                    border-radius: 4px;
-                    margin: 10px 0;
-                }
-                
-                .error-message {
-                    color: #ff3333;
-                    font-weight: bold;
-                    font-size: 1.1em;
-                    padding: 10px;
-                    background-color: rgba(0, 0, 0, 0.2);
-                    border-radius: 4px;
-                    margin: 10px 0;
-                }
-            `;
-            document.head.appendChild(style);
-            
-            // Add some initial text to the log to show activity
-            generationLog.innerHTML = '> Initializing Engine Arcade...<br>> Preparing to generate your Three.js game<br>> Starting code generation process...<br>';
-            
-            // Add debug logging
-            console.log('Game initialization started', {
-                projectName,
-                iframeLoaded: (typeof iframeLoaded !== 'undefined') ? iframeLoaded : 'undefined',
-                checkForFilesAndLoad: (typeof window.checkForFilesAndLoad === 'function') ? 'defined' : 'undefined',
-            });
-        }
-
-        // Setup event listeners and initialize the game when the DOM is fully loaded
-        document.addEventListener('DOMContentLoaded', function() {
-            // Get elements after DOM is loaded
-            const chatSubmit = document.getElementById('chat-submit');
-            const chatInput = document.getElementById('chat-input');
-            
-            // Event listeners - only add if elements exist
-            if (chatSubmit) {
-                chatSubmit.addEventListener('click', handleChatSubmit);
-            }
-            
-            if (chatInput) {
-                chatInput.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') {
-                        handleChatSubmit();
-                    }
-                });
-            }
-            
-            // Start game initialization when the page loads
-            window.addEventListener('load', function() {
-                console.log('Window loaded, initializing game in 1 second...');
-                // Short delay to ensure DOM is fully loaded
-                setTimeout(initGame, 1000);
-            });
         });
     </script>
 </body>

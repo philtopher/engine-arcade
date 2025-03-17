@@ -9,6 +9,7 @@ import time
 import shutil
 import signal
 import select
+import requests
 
 app = Flask(__name__, static_folder='static')
 
@@ -2741,10 +2742,13 @@ def stream_logs(project_name):
     
     def generate():
         # Send an initial message
-        yield f"data: {{\"status\": \"started\", \"message\": \"Starting log stream for {project_name}\"}}\n\n"
+        yield f"data: {{\"status\": \"started\", \"message\": \"Starting log stream for {project_name}\", \"content\": \"> Starting GPT Engineer process for {project_name}...\\n\"}}\n\n"
         
         # Start with an empty position or at the end of the file if it exists
         position = os.path.getsize(log_file) if os.path.exists(log_file) else 0
+        
+        # Counter for periodic updates when no new content
+        no_content_counter = 0
         
         while True:
             try:
@@ -2759,26 +2763,393 @@ def stream_logs(project_name):
                         position = f.tell()
                     
                     if new_content:
+                        # Check if there's a prompt requiring input
+                        if "Do you want to execute this code? (Y/n)" in new_content or \
+                           "(Y/n)" in new_content or \
+                           "(y/N)" in new_content or \
+                           "[y/n]" in new_content:
+                            # Auto-respond with 'y'
+                            try:
+                                requests.get(f"http://localhost:5050/auto_respond_to_gpte/{project_name}")
+                                new_content += "\n> [AUTO] Automatically responding 'y' to prompt...\n"
+                            except Exception as e:
+                                print(f"Error auto-responding: {e}")
+                        
+                        # Process content to better highlight code sections
+                        processed_content = new_content
                         # Escape any special characters in the content for JSON
-                        escaped_content = json.dumps(new_content)[1:-1]  # Remove outer quotes
+                        escaped_content = json.dumps(processed_content)[1:-1]  # Remove outer quotes
                         yield f"data: {{\"status\": \"running\", \"content\": \"{escaped_content}\"}}\n\n"
+                        no_content_counter = 0
+                    else:
+                        # Periodically send a keep-alive message if no new content
+                        no_content_counter += 1
+                        if no_content_counter >= 10:  # About every 5 seconds
+                            yield f"data: {{\"status\": \"running\", \"content\": \".\"}}\n\n"
+                            no_content_counter = 0
                 
                 # Check if generation is complete
                 if os.path.exists(done_file):
-                    yield f"data: {{\"status\": \"completed\", \"message\": \"Generation completed\"}}\n\n"
+                    yield f"data: {{\"status\": \"completed\", \"message\": \"Generation completed\", \"content\": \"\\n> ✅ Game generation complete!\\n\"}}\n\n"
                     break
                     
                 # Sleep before checking again to reduce CPU usage
                 time.sleep(0.5)
                 
             except Exception as e:
-                yield f"data: {{\"status\": \"error\", \"message\": \"Error reading log: {str(e)}\"}}\n\n"
+                yield f"data: {{\"status\": \"error\", \"message\": \"Error reading log: {str(e)}\", \"content\": \"\\n> ❌ Error: {str(e)}\\n\"}}\n\n"
                 time.sleep(2)  # Sleep longer on error
     
     response = Response(stream_with_context(generate()), mimetype="text/event-stream")
     response.headers["Cache-Control"] = "no-cache"
     response.headers["X-Accel-Buffering"] = "no"
     return response
+
+@app.route('/respond_to_gpte', methods=['POST'])
+def respond_to_gpte():
+    """Handle user responses to GPT-Engineer prompts during generation"""
+    try:
+        data = request.get_json()
+        project_name = data.get('project_name')
+        user_response = data.get('response')
+        
+        if not project_name or not user_response:
+            return jsonify({"status": "error", "message": "Project name and response are required"}), 400
+        
+        # Get the project directory
+        project_dir = os.path.join(BASE_PROJECT_DIR, project_name)
+        if not os.path.exists(project_dir):
+            return jsonify({"status": "error", "message": "Project not found"}), 404
+        
+        # Log the response to the gpt_engineer.log file
+        log_file = os.path.join(project_dir, "gpt_engineer.log")
+        with open(log_file, 'a') as f:
+            f.write(f"\n[USER RESPONSE]: {user_response}\n")
+        
+        # Create a temporary file with the user's response
+        response_file = os.path.join(project_dir, ".user_response")
+        with open(response_file, 'w') as f:
+            f.write(user_response)
+        
+        # Create a pipe file to send the response directly to stdin
+        pipe_path = os.path.join(project_dir, ".pipe")
+        with open(pipe_path, 'w') as f:
+            f.write(f"{user_response}\n")
+        
+        # For compatibility, also try writing to a fifo pipe if it exists
+        fifo_path = os.path.join(project_dir, "input_pipe")
+        if os.path.exists(fifo_path):
+            try:
+                # Try non-blocking write to fifo
+                with open(fifo_path, 'w', blocking=False) as f:
+                    f.write(f"{user_response}\n")
+            except Exception as e:
+                print(f"Failed to write to fifo pipe: {e}")
+        
+        print(f"User response '{user_response}' saved for project {project_name}")
+        return jsonify({"status": "success", "message": "Response submitted successfully"})
+    
+    except Exception as e:
+        print(f"Error handling user response: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# Add this new function to automatically answer "yes" to GPT Engineer prompts
+@app.route('/auto_respond_to_gpte/<project_name>', methods=['GET'])
+def auto_respond_to_gpte(project_name):
+    """Automatically respond 'y' to any GPT Engineer prompts"""
+    try:
+        # Get the project directory
+        project_dir = os.path.join(BASE_PROJECT_DIR, project_name)
+        if not os.path.exists(project_dir):
+            return jsonify({"status": "error", "message": "Project not found"}), 404
+        
+        # Send 'y' response through multiple channels to ensure it's caught
+        
+        # 1. Append to log file
+        log_file = os.path.join(project_dir, "gpt_engineer.log")
+        with open(log_file, 'a') as f:
+            f.write("\n[AUTO RESPONSE]: y\n")
+        
+        # 2. Create a response file
+        response_file = os.path.join(project_dir, ".user_response")
+        with open(response_file, 'w') as f:
+            f.write("y")
+        
+        # 3. Try writing to .pipe file
+        pipe_path = os.path.join(project_dir, ".pipe")
+        with open(pipe_path, 'w') as f:
+            f.write("y\n")
+        
+        # 4. Try writing to stdin directly if possible
+        try:
+            # Try to find the gpte process
+            gpte_processes = os.popen(f"ps aux | grep python | grep gpt-engineer | grep {project_name}").read()
+            for line in gpte_processes.splitlines():
+                if project_name in line:
+                    pid = line.split()[1]
+                    try:
+                        with open(f"/proc/{pid}/fd/0", 'w') as f:
+                            f.write("y\n")
+                    except:
+                        pass  # Silently continue if this fails
+        except:
+            pass  # Silently continue if process finding fails
+        
+        # 5. Try a fifo pipe if it exists
+        fifo_path = os.path.join(project_dir, "input_pipe")
+        if os.path.exists(fifo_path):
+            try:
+                with open(fifo_path, 'w', blocking=False) as f:
+                    f.write("y\n")
+            except:
+                pass  # Silently continue if this fails
+        
+        print(f"Auto-responded 'y' for project {project_name}")
+        return jsonify({"status": "success", "message": "Auto-responded with 'y'"})
+    
+    except Exception as e:
+        print(f"Error in auto-response: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/force_load_game/<project_name>', methods=['GET'])
+def force_load_game(project_name):
+    """Force completion status for a game to allow loading"""
+    try:
+        # Get the project directory
+        project_dir = os.path.join(BASE_PROJECT_DIR, project_name)
+        if not os.path.exists(project_dir):
+            return jsonify({"status": "error", "message": "Project not found"}), 404
+        
+        # Create a .gpte_done file to mark generation as complete
+        done_file = os.path.join(project_dir, '.gpte_done')
+        with open(done_file, 'w') as f:
+            f.write("forced_completion")
+        
+        # Check if any HTML files exist
+        html_files = []
+        for root, _, files in os.walk(project_dir):
+            for file in files:
+                if file.endswith('.html'):
+                    html_files.append(os.path.join(root, file))
+        
+        # Try to find index.html
+        index_html = None
+        for html_file in html_files:
+            if os.path.basename(html_file).lower() == 'index.html':
+                index_html = html_file
+                break
+        
+        # If no index.html found, use the first HTML file
+        if not index_html and html_files:
+            index_html = html_files[0]
+        
+        # If still no index.html, create a default one
+        if not index_html:
+            index_html = os.path.join(project_dir, 'index.html')
+            with open(index_html, 'w') as f:
+                f.write("""<!DOCTYPE html>
+<html>
+<head>
+    <title>Generated Game</title>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+</head>
+<body>
+    <div id="game-container" style="width: 100%; height: 100vh;"></div>
+    <script>
+        // Basic game container
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('game-container').appendChild(renderer.domElement);
+        
+        // Add a simple cube
+        const geometry = new THREE.BoxGeometry();
+        const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        const cube = new THREE.Mesh(geometry, material);
+        scene.add(cube);
+        
+        camera.position.z = 5;
+        
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            cube.rotation.x += 0.01;
+            cube.rotation.y += 0.01;
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>""")
+        
+        # Find all files to copy to the static assets directory 
+        static_assets_dir = os.path.join('static', 'project_assets', project_name)
+        os.makedirs(static_assets_dir, exist_ok=True)
+        
+        # Copy all relevant files
+        file_types = ('.html', '.js', '.css', '.png', '.jpg', '.gif', '.jpeg', '.json', '.mp3', '.wav')
+        for root, _, files in os.walk(project_dir):
+            for file in files:
+                if file.endswith(file_types):
+                    src_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(src_path, project_dir)
+                    dst_path = os.path.join(static_assets_dir, rel_path)
+                    
+                    # Create directories if needed
+                    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+                    
+                    # Copy the file
+                    try:
+                        shutil.copy2(src_path, dst_path)
+                        print(f"Copied file: {rel_path} to {dst_path}")
+                    except Exception as e:
+                        print(f"Error copying file {rel_path}: {e}")
+        
+        # Record all the files we found
+        found_files = []
+        for root, _, files in os.walk(static_assets_dir):
+            for file in files:
+                rel_path = os.path.relpath(os.path.join(root, file), static_assets_dir)
+                found_files.append(rel_path)
+        
+        return jsonify({
+            "status": "success", 
+            "message": "Game set to complete status",
+            "files_copied": found_files
+        })
+    
+    except Exception as e:
+        print(f"Error forcing game load: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/locate_game_files/<project_name>', methods=['GET'])
+def locate_game_files(project_name):
+    """Locate the main game files for the project"""
+    try:
+        # Get the project directory
+        project_dir = os.path.join(BASE_PROJECT_DIR, project_name)
+        if not os.path.exists(project_dir):
+            return jsonify({"status": "error", "message": "Project not found"}), 404
+        
+        # Find all HTML files in the project
+        html_files = []
+        js_files = []
+        css_files = []
+        
+        for root, _, files in os.walk(project_dir):
+            for file in files:
+                file_path = os.path.join(root, file)
+                rel_path = os.path.relpath(file_path, project_dir)
+                
+                if file.endswith('.html'):
+                    # Serve HTML files from special route
+                    html_files.append(f"/play_raw/{project_name}/{rel_path}")
+                elif file.endswith('.js'):
+                    js_files.append(f"/play_raw/{project_name}/{rel_path}")
+                elif file.endswith('.css'):
+                    css_files.append(f"/play_raw/{project_name}/{rel_path}")
+        
+        # Also check in the static assets directory
+        static_assets_dir = os.path.join('static', 'project_assets', project_name)
+        if os.path.exists(static_assets_dir):
+            for root, _, files in os.walk(static_assets_dir):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(file_path, static_assets_dir)
+                    
+                    if file.endswith('.html'):
+                        # Serve HTML files from static path
+                        html_files.append(f"/static/project_assets/{project_name}/{rel_path}")
+                    elif file.endswith('.js'):
+                        js_files.append(f"/static/project_assets/{project_name}/{rel_path}")
+                    elif file.endswith('.css'):
+                        css_files.append(f"/static/project_assets/{project_name}/{rel_path}")
+        
+        # Ensure all directories exist in project assets
+        ensure_project_assets_dir = os.path.join('static', 'project_assets', project_name)
+        os.makedirs(ensure_project_assets_dir, exist_ok=True)
+        
+        # Make sure we copy all project files to static assets
+        for root, _, files in os.walk(project_dir):
+            for file in files:
+                if file.endswith(('.html', '.js', '.css', '.png', '.jpg', '.gif', '.json')):
+                    src_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(src_path, project_dir)
+                    dst_path = os.path.join(ensure_project_assets_dir, rel_path)
+                    
+                    # Create directories if needed
+                    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+                    
+                    # Copy the file
+                    try:
+                        shutil.copy2(src_path, dst_path)
+                        print(f"Copied file: {rel_path} to {dst_path}")
+                    except Exception as e:
+                        print(f"Error copying file {rel_path}: {e}")
+        
+        # Return the located files
+        return jsonify({
+            "status": "success", 
+            "message": "Files located",
+            "files": html_files,
+            "js_files": js_files,
+            "css_files": css_files
+        })
+    
+    except Exception as e:
+        print(f"Error locating game files: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/play_raw/<project_name>/<path:file_path>', methods=['GET'])
+def serve_project_file(project_name, file_path):
+    """Serve a raw file from the project directory"""
+    try:
+        # Get the project directory
+        project_dir = os.path.join(BASE_PROJECT_DIR, project_name)
+        if not os.path.exists(project_dir):
+            return "Project not found", 404
+        
+        # Check if the file exists
+        file_path_full = os.path.join(project_dir, file_path)
+        if not os.path.exists(file_path_full) or not os.path.isfile(file_path_full):
+            return "File not found", 404
+        
+        # Determine content type based on file extension
+        content_type = 'text/plain'
+        if file_path.endswith('.html'):
+            content_type = 'text/html'
+        elif file_path.endswith('.js'):
+            content_type = 'application/javascript'
+        elif file_path.endswith('.css'):
+            content_type = 'text/css'
+        elif file_path.endswith('.json'):
+            content_type = 'application/json'
+        elif file_path.endswith(('.png', '.jpg', '.jpeg', '.gif')):
+            # Let Flask determine content type for images
+            return send_from_directory(project_dir, file_path)
+        
+        # Read the file
+        with open(file_path_full, 'r') as f:
+            content = f.read()
+        
+        # Return the content with appropriate content type
+        response = make_response(content)
+        response.headers['Content-Type'] = content_type
+        return response
+    
+    except Exception as e:
+        print(f"Error serving file {file_path}: {str(e)}")
+        return str(e), 500
+
+@app.route('/rebuild_css', methods=['GET'])
+def rebuild_css():
+    """Rebuild Tailwind CSS (development only)"""
+    try:
+        subprocess.run(['npm', 'run', 'build:css'], check=True)
+        return jsonify({"status": "success", "message": "CSS rebuilt successfully"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5050)

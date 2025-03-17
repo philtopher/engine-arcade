@@ -1,0 +1,75 @@
+<div id="loading">
+    <div>Loading {project_name}...</div>
+    <div class="spinner"></div>
+    <div id="progress">Initializing game...</div>
+    <!-- Add terminal output display -->
+    <div id="terminal-output" style="
+        margin-top: 20px;
+        max-width: 600px;
+        max-height: 200px;
+        overflow-y: auto;
+        text-align: left;
+        background: rgba(0,0,0,0.7);
+        padding: 10px;
+        border-radius: 5px;
+        font-family: monospace;
+        font-size: 12px;
+        display: none;
+    "></div>
+</div>
+
+<script>
+    // ... existing code ...
+    
+    // Add SSE connection to stream terminal output
+    const projectName = window.location.pathname.split('/')[2]; // Extract project name from URL
+    
+    // Function to connect to the SSE stream
+    function connectToStream() {
+        const terminalOutput = document.getElementById('terminal-output');
+        if (terminalOutput) {
+            terminalOutput.style.display = 'block';
+            terminalOutput.innerHTML = 'Connecting to GPT Engineer stream...<br>';
+            
+            // Connect to the stream endpoint
+            const eventSource = new EventSource(`/stream_logs/${projectName}`);
+            
+            eventSource.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.content) {
+                        // Append the content to the terminal output
+                        terminalOutput.innerHTML += data.content.replace(/\n/g, '<br>');
+                        terminalOutput.scrollTop = terminalOutput.scrollHeight;
+                    }
+                    
+                    if (data.status === 'completed') {
+                        eventSource.close();
+                        // Update the progress message
+                        const progressEl = document.getElementById('progress');
+                        if (progressEl) {
+                            progressEl.textContent = 'Generation complete! Loading game...';
+                        }
+                        // Refresh the page to load the completed game
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    }
+                } catch (e) {
+                    console.error('Error parsing SSE data:', e);
+                }
+            };
+            
+            eventSource.onerror = function() {
+                terminalOutput.innerHTML += 'Error connecting to stream or stream closed.<br>';
+                eventSource.close();
+            };
+        }
+    }
+    
+    // Call the function to connect to the stream
+    connectToStream();
+    
+    // ... existing code ...
+</script> 

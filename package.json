@@ -1,0 +1,14 @@
+{
+  "name": "engine-arcade",
+  "version": "1.0.0",
+  "description": "Engine Arcade Game Generator",
+  "scripts": {
+    "build:css": "tailwindcss -i ./static/src/tailwind.css -o ./static/css/tailwind.css --minify",
+    "watch:css": "tailwindcss -i ./static/src/tailwind.css -o ./static/css/tailwind.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.3.3",
+    "autoprefixer": "^10.4.14",
+    "postcss": "^8.4.27"
+  }
+} 
